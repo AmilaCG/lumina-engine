@@ -15,8 +15,8 @@ find_package(imgui CONFIG REQUIRED)
 target_include_directories(LuminaEngine PRIVATE ${Stb_INCLUDE_DIR})
 
 target_link_libraries(LuminaEngine PRIVATE
-        glad::glad
-        assimp::assimp
         glfw
+        glad::glad
         glm::glm-header-only
+        assimp::assimp
         imgui::imgui)
