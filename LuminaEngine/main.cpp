@@ -8,9 +8,14 @@
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void processInput(GLFWwindow *window);
 void renderLoop(GLFWwindow* window);
+void displayUI();
 
 const unsigned int SCR_WIDTH = 1280;
 const unsigned int SCR_HEIGHT = 720;
+
+static float pos[3];
+static float rot[3];
+static float scale[3];
 
 void processInput(GLFWwindow *window)
 {
@@ -33,7 +38,8 @@ void renderLoop(GLFWwindow* window)
     ImGui_ImplOpenGL3_NewFrame();
     ImGui_ImplGlfw_NewFrame();
     ImGui::NewFrame();
-    ImGui::ShowDemoWindow();
+
+    displayUI();
 
     glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT);
@@ -42,6 +48,32 @@ void renderLoop(GLFWwindow* window)
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
     glfwSwapBuffers(window);
+}
+
+void displayUI()
+{
+    ImGuiWindowFlags window_flags = 0;
+    window_flags |= ImGuiWindowFlags_NoMove;
+    window_flags |= ImGuiWindowFlags_NoCollapse;
+    window_flags |= ImGuiWindowFlags_NoResize;
+    window_flags |= ImGuiWindowFlags_NoTitleBar;
+
+    ImGui::SetNextWindowPos(ImVec2(10, 10), ImGuiCond_Always);
+    ImGui::SetNextWindowSize(ImVec2(300, 110), ImGuiCond_Always);
+
+    if (!ImGui::Begin("Transform", nullptr, window_flags))
+    {
+        // Early out if the window is collapsed, as an optimization.
+        ImGui::End();
+        return;
+    }
+
+    ImGui::SeparatorText("Transform");
+    ImGui::DragFloat3("Position", pos, 0.001f);
+    ImGui::DragFloat3("Rotation", rot, 0.001f);
+    ImGui::DragFloat3("Scale", scale, 0.001f);
+
+    ImGui::End();
 }
 
 int main()
