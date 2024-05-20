@@ -24,8 +24,9 @@ const unsigned int SCR_WIDTH = 1280;
 const unsigned int SCR_HEIGHT = 720;
 const float MOUSE_SENSITIVITY = 0.1f;
 
-const std::string V_SHADER_PATH = "shaders/shader.vert";
-const std::string F_SHADER_PATH = "shaders/shader.frag";
+const std::string V_SHADER_PATH = "Shaders/shader.vert";
+const std::string F_SHADER_PATH = "Shaders/shader.frag";
+const std::string BACKPACK_MODEL_PATH = "Models/backpack.obj";
 
 static float pos[3];
 static float rot[3];
@@ -246,7 +247,7 @@ int main()
     glViewport(0, 0, SCR_WIDTH, SCR_HEIGHT);
     glEnable(GL_DEPTH_TEST);
 
-    guitarBackpackModel = new Model("models/backpack.obj");
+    guitarBackpackModel = new Model(BACKPACK_MODEL_PATH);
     backpackShader = new Shader(V_SHADER_PATH.c_str(), F_SHADER_PATH.c_str());
 
     // IMGUI setup

@@ -24,3 +24,7 @@ target_link_libraries(LuminaEngine PRIVATE
         glm::glm-header-only
         assimp::assimp
         imgui::imgui)
+
+add_custom_command(TARGET LuminaEngine PRE_BUILD
+                    COMMAND ${CMAKE_COMMAND} -E copy_directory
+                    ${CMAKE_SOURCE_DIR}/Assets/ $<TARGET_FILE_DIR:LuminaEngine>)
