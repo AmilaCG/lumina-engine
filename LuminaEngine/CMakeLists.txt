@@ -3,7 +3,11 @@ project(LuminaEngine)
 
 set(CMAKE_CXX_STANDARD 20)
 
-add_executable(LuminaEngine main.cpp)
+add_executable(LuminaEngine
+        main.cpp
+        Mesh.cpp
+        Model.cpp
+        Shader.cpp)
 
 find_package(glad CONFIG REQUIRED)
 find_package(Stb REQUIRED)
