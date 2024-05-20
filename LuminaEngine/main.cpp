@@ -12,8 +12,9 @@
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void processInput(GLFWwindow *window);
-void mouseCallback(GLFWwindow* window, double xPos, double yPos);
-void scrollCallback(GLFWwindow* window, double xOffset, double yOffset);
+void mouse_button_callback(GLFWwindow* window, int button, int action, int mods);
+void cursor_pos_callback(GLFWwindow* window, double xPos, double yPos);
+void scroll_callback(GLFWwindow* window, double xOffset, double yOffset);
 void renderLoop(GLFWwindow* window);
 glm::vec3 getCameraDirection(double yaw, double pitch);
 void displayUI();
@@ -40,6 +41,7 @@ double camYaw = -90.0f; // Rotation around Y axis
 double camPitch = 0.0f; // Rotation around X axis
 float fov = 45.0f;
 
+bool shouldPanCamera = false;
 bool isFirstMouse = true;
 double lastMouseX = SCR_WIDTH / 2.0f;
 double lastMouseY = SCR_HEIGHT / 2.0f;
@@ -57,7 +59,7 @@ void processInput(GLFWwindow *window)
         glfwSetWindowShouldClose(window, true);
     }
 
-    const float camera_speed = 2.5f * deltaTime;
+    const float camera_speed = 5.0f * deltaTime;
     if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
     {
         cameraPosition += camera_speed * cameraFront;
@@ -104,8 +106,11 @@ void renderLoop(GLFWwindow* window)
     backpackShader->setMat4("projection", projection);
 
     glm::mat4 model = glm::mat4(1.0f);
-    model = glm::translate(model, glm::vec3(0.0f, 0.0f, 0.0f)); // translate it down so it's at the center of the scene
-    model = glm::scale(model, glm::vec3(1.0f, 1.0f, 1.0f));	// it's a bit too big for our scene, so scale it down
+    model = glm::rotate(model, glm::radians(rot[0]), glm::vec3(1.0, 0.0, 0.0));
+    model = glm::rotate(model, glm::radians(rot[1]), glm::vec3(0.0, 1.0, 0.0));
+    model = glm::rotate(model, glm::radians(rot[2]), glm::vec3(0.0, 0.0, 1.0));
+    model = glm::translate(model, glm::vec3(pos[0], pos[1], pos[2]));
+    model = glm::scale(model, glm::vec3(scale[0], scale[1], scale[2]));
     backpackShader->setMat4("model", model);
 
     guitarBackpackModel->Draw(*backpackShader);
@@ -136,14 +141,32 @@ void displayUI()
 
     ImGui::SeparatorText("Transform");
     ImGui::DragFloat3("Position", pos, 0.001f);
-    ImGui::DragFloat3("Rotation", rot, 0.001f);
+    ImGui::DragFloat3("Rotation", rot, 0.01f);
     ImGui::DragFloat3("Scale", scale, 0.001f);
 
     ImGui::End();
 }
 
-void mouseCallback(GLFWwindow* window, double xPos, double yPos)
+void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
 {
+    if (button == GLFW_MOUSE_BUTTON_RIGHT && action == GLFW_PRESS)
+    {
+        shouldPanCamera = true;
+    }
+    else if (button == GLFW_MOUSE_BUTTON_RIGHT && action == GLFW_RELEASE)
+    {
+        shouldPanCamera = false;
+        isFirstMouse = true;
+    }
+}
+
+void cursor_pos_callback(GLFWwindow* window, double xPos, double yPos)
+{
+    if (!shouldPanCamera)
+    {
+        return;
+    }
+
     if (isFirstMouse)
     {
         lastMouseX = xPos;
@@ -169,7 +192,7 @@ void mouseCallback(GLFWwindow* window, double xPos, double yPos)
     cameraFront = glm::normalize(cameraDirection);
 }
 
-void scrollCallback(GLFWwindow* window, double xOffset, double yOffset)
+void scroll_callback(GLFWwindow* window, double xOffset, double yOffset)
 {
     fov -= (float)yOffset;
     if (fov < 1.0f) { fov = 1.0f; }
@@ -209,9 +232,10 @@ int main()
     glfwMakeContextCurrent(window);
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
 
-    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-    glfwSetCursorPosCallback(window, mouseCallback);
-    glfwSetScrollCallback(window, scrollCallback);
+    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+    glfwSetMouseButtonCallback(window, mouse_button_callback);
+    glfwSetCursorPosCallback(window, cursor_pos_callback);
+    glfwSetScrollCallback(window, scroll_callback);
 
     if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
     {
