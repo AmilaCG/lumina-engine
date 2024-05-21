@@ -23,6 +23,7 @@ void deinit();
 const unsigned int SCR_WIDTH = 1280;
 const unsigned int SCR_HEIGHT = 720;
 const float MOUSE_SENSITIVITY = 0.1f;
+const float DURATION_TO_MOUSE_HOLD = 0.1f; // In seconds
 
 const std::string V_SHADER_PATH = "Shaders/shader.vert";
 const std::string F_SHADER_PATH = "Shaders/shader.frag";
@@ -48,7 +49,11 @@ double lastMouseX = SCR_WIDTH / 2.0f;
 double lastMouseY = SCR_HEIGHT / 2.0f;
 
 double deltaTime = 0.0f;
-double lastFrame = 0.0f;
+double lastFrameTime = 0.0f;
+
+bool isLeftMouseHolding = false;
+double mouseHoldStartTime = 0.0f;
+double mouseHoldDuration = 0.0f;
 
 Model* guitarBackpackModel;
 Shader* backpackShader;
@@ -153,11 +158,25 @@ void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
     if (button == GLFW_MOUSE_BUTTON_RIGHT && action == GLFW_PRESS)
     {
         shouldPanCamera = true;
+        glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
     }
     else if (button == GLFW_MOUSE_BUTTON_RIGHT && action == GLFW_RELEASE)
     {
         shouldPanCamera = false;
         isFirstMouse = true;
+        glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+    }
+
+    if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS)
+    {
+        isLeftMouseHolding = true;
+        mouseHoldStartTime = glfwGetTime();
+    }
+    else if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_RELEASE)
+    {
+        isLeftMouseHolding = false;
+        mouseHoldDuration = 0.0f;
+        glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
     }
 }
 
@@ -262,9 +281,18 @@ int main()
 
     while (!glfwWindowShouldClose(window))
     {
-        double currentFrame = glfwGetTime();
-        deltaTime = currentFrame - lastFrame;
-        lastFrame = currentFrame;
+        double currentTime = glfwGetTime();
+        deltaTime = currentTime - lastFrameTime;
+        if (isLeftMouseHolding)
+        {
+            mouseHoldDuration = currentTime - mouseHoldStartTime;
+            if (glfwGetInputMode(window, GLFW_CURSOR) != GLFW_CURSOR_DISABLED &&
+                mouseHoldDuration >= DURATION_TO_MOUSE_HOLD)
+            {
+                glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+            }
+        }
+        lastFrameTime = currentTime;
 
         renderLoop(window);
     }
