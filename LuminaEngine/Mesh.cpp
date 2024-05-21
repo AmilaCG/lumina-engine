@@ -2,7 +2,9 @@
 
 #include <glad/glad.h>
 
-Mesh::Mesh(std::vector<Vertex> verticies, std::vector<unsigned int> indices, std::vector<Texture> textures)
+Mesh::Mesh(const std::vector<Vertex>& verticies,
+           const std::vector<unsigned int>& indices,
+           const std::vector<Texture>& textures)
     : verticies(verticies), indices(indices), textures(textures)
 {
     setupMesh();
@@ -59,7 +61,9 @@ void Mesh::Draw(Shader& shader)
             number = std::to_string(specularNr++);
         }
 
-        shader.setInt(("material." + name + number).c_str(), i);
+        std::string materialName;
+        materialName.append("material.").append(name).append(number);
+        shader.setInt(materialName, i);
         glBindTexture(GL_TEXTURE_2D, textures[i].id);
     }
     //glActiveTexture(GL_TEXTURE0); // TODO: Why this??

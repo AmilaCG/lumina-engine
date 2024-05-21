@@ -20,13 +20,13 @@ Model::Model(std::string path)
 
 void Model::Draw(Shader& shader)
 {
-    for (unsigned int i = 0; i < this->meshes.size(); i++)
+    for (Mesh& mesh : meshes)
     {
-        this->meshes[i].Draw(shader);
+        mesh.Draw(shader);
     }
 }
 
-void Model::loadModel(std::string path)
+void Model::loadModel(const std::string& path)
 {
     Assimp::Importer importer;
     const aiScene* scene = importer.ReadFile(path, aiProcess_Triangulate);
@@ -63,7 +63,7 @@ Mesh Model::processMesh(aiMesh* mesh, const aiScene* scene)
 
     for (unsigned int i = 0; i < mesh->mNumVertices; i++)
     {
-        Vertex vertex;
+        Vertex vertex = {};
 
         // Process vertex position
         glm::vec3 vector;
@@ -154,10 +154,10 @@ std::vector<Texture> Model::loadMaterialTextures(aiMaterial* mat, aiTextureType 
     return textures;
 }
 
-unsigned int Model::textureFromFile(std::string fileName, const std::string& directory)
+unsigned int Model::textureFromFile(const std::string& fileName, const std::string& directory)
 {
     std::string path = directory + '/' + fileName;
-    unsigned int textureID;
+    unsigned int textureID = 0;
 
     int width, height, nrComponents;
     unsigned char* data = stbi_load(path.c_str(), &width, &height, &nrComponents, 0);

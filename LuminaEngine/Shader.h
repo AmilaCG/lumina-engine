@@ -27,7 +27,7 @@ public:
 
 private:
     void compileAndLink(const char* vShaderCode, const char* fShaderCode);
-    void checkCompileErrors(unsigned int shader, std::string type);
+    void checkCompileErrors(unsigned int shader, const std::string& type);
 
 private:
     unsigned int programID;

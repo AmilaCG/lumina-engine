@@ -22,7 +22,9 @@ struct Texture
 class Mesh
 {
 public:
-    Mesh(std::vector<Vertex> verticies, std::vector<unsigned int> indices, std::vector<Texture> textures);
+    Mesh(const std::vector<Vertex>& verticies,
+         const std::vector<unsigned int>& indices,
+         const std::vector<Texture>& textures);
     void Draw(Shader& shader);
 
 public:
