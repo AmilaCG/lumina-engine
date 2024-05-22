@@ -25,9 +25,9 @@ const unsigned int SCR_HEIGHT = 720;
 const float MOUSE_SENSITIVITY = 0.1f;
 const float DURATION_TO_MOUSE_HOLD = 0.1f; // In seconds
 
-const std::string V_SHADER_PATH = "Shaders/shader.vert";
-const std::string F_SHADER_PATH = "Shaders/shader.frag";
-const std::string BACKPACK_MODEL_PATH = "Models/backpack.obj";
+const std::string V_SHADER_PATH = "Assets/Shaders/shader_object.vert";
+const std::string F_SHADER_PATH = "Assets/Shaders/shader_object.frag";
+const std::string BACKPACK_MODEL_PATH = "Assets/Models/backpack.obj";
 
 static float pos[3];
 static float rot[3];

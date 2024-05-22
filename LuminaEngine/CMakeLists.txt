@@ -25,6 +25,13 @@ target_link_libraries(LuminaEngine PRIVATE
         assimp::assimp
         imgui::imgui)
 
-add_custom_command(TARGET LuminaEngine PRE_BUILD
-                    COMMAND ${CMAKE_COMMAND} -E copy_directory
-                    ${CMAKE_SOURCE_DIR}/Assets/ $<TARGET_FILE_DIR:LuminaEngine>)
+add_custom_target(ClearAssets ALL
+        COMMAND ${CMAKE_COMMAND} -E rm -rf
+        $<TARGET_FILE_DIR:LuminaEngine>/Assets/)
+
+add_custom_target(CopyAssets ALL
+        COMMAND ${CMAKE_COMMAND} -E copy_directory
+        ${CMAKE_SOURCE_DIR}/Assets/ $<TARGET_FILE_DIR:LuminaEngine>/Assets/)
+
+add_dependencies(LuminaEngine CopyAssets)
+add_dependencies(CopyAssets ClearAssets)
