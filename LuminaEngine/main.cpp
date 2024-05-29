@@ -1,4 +1,5 @@
 #include <iostream>
+#include <sstream>
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 #include <imgui.h>
@@ -16,6 +17,7 @@ void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
 void cursor_pos_callback(GLFWwindow* window, double xPos, double yPos);
 void scroll_callback(GLFWwindow* window, double xOffset, double yOffset);
 void renderLoop(GLFWwindow* window);
+void setLightParameters();
 glm::vec3 getCameraDirection(double yaw, double pitch);
 void displayUI();
 void deinit();
@@ -58,6 +60,20 @@ double mouseHoldDuration = 0.0f;
 Model* guitarBackpackModel;
 Shader* backpackShader;
 
+glm::vec3 pointLightPositions[] = {
+        glm::vec3(0.7f,  0.2f,  2.0f),
+        glm::vec3(2.3f, -3.3f, -4.0f),
+        glm::vec3(-4.0f, 2.0f, -12.0f),
+        glm::vec3(0.0f,  0.0f, -3.0f)
+};
+
+glm::vec3 pointLightColors[] = {
+        glm::vec3(1.0f, 1.0f, 1.0f),
+        glm::vec3(1.0f, 0.0f, 0.0f),
+        glm::vec3(0.0f, 1.0f, 0.0f),
+        glm::vec3(0.0f, 0.0f, 1.0f)
+};
+
 void processInput(GLFWwindow *window)
 {
     if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
@@ -89,6 +105,50 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height)
     glViewport(0, 0, width, height);
 }
 
+void setLightParameters()
+{
+    glm::vec3 ambient(0.05);
+    glm::vec3 diffuse(0.8f);
+    glm::vec3 specular(1.0f);
+
+    // Directional light
+    backpackShader->setVec3("dirLight.direction", glm::vec3(-0.2f, -1.0f, -0.3f));
+    backpackShader->setVec3("dirLight.ambient", ambient);
+    backpackShader->setVec3("dirLight.diffuse", glm::vec3(0.5f));
+    backpackShader->setVec3("dirLight.specular", specular);
+
+    // Point light
+    int i = 0;
+    for (const glm::vec3& position : pointLightPositions)
+    {
+        std::ostringstream oss;
+        oss << "pointLights[" << i << "]";
+        std::string pointLight = oss.str();
+
+        backpackShader->setVec3(pointLight + ".position", position);
+        backpackShader->setVec3(pointLight + ".ambient", ambient * pointLightColors[i]);
+        backpackShader->setVec3(pointLight + ".diffuse", diffuse * pointLightColors[i]);
+        backpackShader->setVec3(pointLight + ".specular", specular);
+        // https://wiki.ogre3d.org/tiki-index.php?page=-Point+Light+Attenuation
+        backpackShader->setFloat(pointLight + ".constant", 1.0f);
+        backpackShader->setFloat(pointLight + ".diffuse", 0.09f);
+        backpackShader->setFloat(pointLight + ".quadratic", 0.032f);
+        i++;
+    }
+
+    // Spot light
+    backpackShader->setVec3("spotLight.position", glm::vec3(cameraPosition));
+    backpackShader->setVec3("spotLight.direction", glm::vec3(cameraFront));
+    backpackShader->setFloat("spotLight.cutOff", glm::cos(glm::radians(12.5f)));
+    backpackShader->setFloat("spotLight.outerCutOff", glm::cos(glm::radians(18.5f)));
+    backpackShader->setVec3("spotLight.ambient", glm::vec3(0.2f));
+    backpackShader->setVec3("spotLight.diffuse", diffuse);
+    backpackShader->setVec3("spotLight.specular", specular);
+    backpackShader->setFloat("spotLight.constant", 1.0f);
+    backpackShader->setFloat("spotLight.diffuse", 0.09f);
+    backpackShader->setFloat("spotLight.quadratic", 0.032f);
+}
+
 void renderLoop(GLFWwindow* window)
 {
     processInput(window);
@@ -105,11 +165,16 @@ void renderLoop(GLFWwindow* window)
 
     backpackShader->use();
 
+    setLightParameters();
+    backpackShader->setFloat("material.shininess", 64.0f);
+
     glm::mat4 view = glm::lookAt(cameraPosition, cameraPosition + cameraFront, world_up);
     backpackShader->setMat4("view", view);
 
     glm::mat4 projection = glm::perspective(glm::radians(fov), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
     backpackShader->setMat4("projection", projection);
+
+    backpackShader->setVec3("viewPos", cameraPosition);
 
     glm::mat4 model = glm::mat4(1.0f);
     model = glm::rotate(model, glm::radians(rot[0]), glm::vec3(1.0, 0.0, 0.0));
