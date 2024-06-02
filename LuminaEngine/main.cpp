@@ -114,7 +114,7 @@ void setLightParameters()
     // Directional light
     backpackShader->setVec3("dirLight.direction", glm::vec3(-0.2f, -1.0f, -0.3f));
     backpackShader->setVec3("dirLight.ambient", ambient);
-    backpackShader->setVec3("dirLight.diffuse", glm::vec3(0.5f));
+    backpackShader->setVec3("dirLight.diffuse", diffuse);
     backpackShader->setVec3("dirLight.specular", specular);
 
     // Point light
