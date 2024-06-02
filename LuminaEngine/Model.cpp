@@ -7,7 +7,7 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
 
-Model::Model(std::string path)
+Model::Model(const std::string& path)
 {
     // Tell stb_image.h to flip loaded texture's on the y-axis (before loading model).
     // TODO NOTE: This was the recommended way in the tutorial but I commented it because

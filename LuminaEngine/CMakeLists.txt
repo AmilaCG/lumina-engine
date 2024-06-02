@@ -7,7 +7,8 @@ add_executable(LuminaEngine
         main.cpp
         Mesh.cpp
         Model.cpp
-        Shader.cpp)
+        Shader.cpp
+        LightPreview.cpp)
 
 find_package(glad CONFIG REQUIRED)
 find_package(Stb REQUIRED)

@@ -10,6 +10,7 @@
 
 #include "Model.h"
 #include "Shader.h"
+#include "LightPreview.h"
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void processInput(GLFWwindow *window);
@@ -27,9 +28,12 @@ const unsigned int SCR_HEIGHT = 720;
 const float MOUSE_SENSITIVITY = 0.1f;
 const float DURATION_TO_MOUSE_HOLD = 0.1f; // In seconds
 
-const std::string V_SHADER_PATH = "Assets/Shaders/shader_object.vert";
-const std::string F_SHADER_PATH = "Assets/Shaders/shader_object.frag";
+const char* OBJ_V_SHADER_PATH = "Assets/Shaders/shader_object.vert";
+const char* OBJ_F_SHADER_PATH = "Assets/Shaders/shader_object.frag";
 const std::string BACKPACK_MODEL_PATH = "Assets/Models/backpack.obj";
+
+const char* LIGHT_V_SHADER_PATH = "Assets/Shaders/shader_light.vert";
+const char* LIGHT_F_SHADER_PATH = "Assets/Shaders/shader_light.frag";
 
 static float pos[3];
 static float rot[3];
@@ -58,7 +62,9 @@ double mouseHoldStartTime = 0.0f;
 double mouseHoldDuration = 0.0f;
 
 Model* guitarBackpackModel;
+LightPreview* lightPreview;
 Shader* backpackShader;
+Shader* lightShader;
 
 glm::vec3 pointLightPositions[] = {
         glm::vec3(0.7f,  0.2f,  2.0f),
@@ -185,6 +191,20 @@ void renderLoop(GLFWwindow* window)
     backpackShader->setMat4("model", model);
 
     guitarBackpackModel->Draw(*backpackShader);
+
+    lightShader->use();
+    lightShader->setMat4("view", view);
+    lightShader->setMat4("projection", projection);
+    unsigned int i = 0;
+    for (const glm::vec3& lightPos : pointLightPositions)
+    {
+        model = glm::mat4(1.0f);
+        model = glm::translate(model, lightPos);
+        model = glm::scale(model, glm::vec3(0.2f));
+        lightShader->setMat4("model", model);
+
+        lightPreview->Draw(*lightShader, pointLightColors[i++]);
+    }
 
     ImGui::Render();
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
@@ -332,7 +352,9 @@ int main()
     glEnable(GL_DEPTH_TEST);
 
     guitarBackpackModel = new Model(BACKPACK_MODEL_PATH);
-    backpackShader = new Shader(V_SHADER_PATH.c_str(), F_SHADER_PATH.c_str());
+    backpackShader = new Shader(OBJ_V_SHADER_PATH, OBJ_F_SHADER_PATH);
+    lightPreview = new LightPreview();
+    lightShader = new Shader(LIGHT_V_SHADER_PATH, LIGHT_F_SHADER_PATH);
 
     // IMGUI setup
     IMGUI_CHECKVERSION();
