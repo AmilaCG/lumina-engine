@@ -191,6 +191,9 @@ void renderLoop(GLFWwindow* window)
     model = glm::scale(model, glm::vec3(scale[0], scale[1], scale[2]));
     backpackShader->setMat4("model", model);
 
+    glm::mat3 normal = glm::mat3(glm::transpose(glm::inverse(model)));
+    backpackShader->setMat3("normalMat", normal);
+
     guitarBackpackModel->Draw(*backpackShader);
 
     lightShader->use();

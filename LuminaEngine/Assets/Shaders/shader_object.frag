@@ -1,6 +1,7 @@
 #version 330 core
 out vec4 FragColor;
 in vec3 FragPos;
+in vec3 Normal;
 in vec2 TexCoords;
 
 uniform vec3 viewPos;
@@ -152,8 +153,11 @@ vec3 calcSpotLight(SpotLight light, vec3 normal, vec3 fragPos, vec3 viewDir)
 
 void main()
 {
-    vec3 normal = texture(material.texture_normal1, TexCoords).rgb;
-    vec3 norm = normalize(normal * 2.0 - 1.0);
+//    vec3 normal = texture(material.texture_normal1, TexCoords).rgb;
+//    vec3 norm = normalize(normal * 2.0 - 1.0);
+    // TODO: This fixes the issue where shadows/lights not appearing on the
+    // back but lost normal map details. Find a way to get them back.
+    vec3 norm = normalize(Normal);
 
     // Light reflection from fragment to camera/eye
     vec3 viewDir = normalize(viewPos - FragPos);
