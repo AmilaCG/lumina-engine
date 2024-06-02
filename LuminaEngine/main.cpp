@@ -131,6 +131,7 @@ void setLightParameters()
         oss << "pointLights[" << i << "]";
         std::string pointLight = oss.str();
 
+        backpackShader->setInt(pointLight + ".isActive", 1);
         backpackShader->setVec3(pointLight + ".position", position);
         backpackShader->setVec3(pointLight + ".ambient", ambient * pointLightColors[i]);
         backpackShader->setVec3(pointLight + ".diffuse", diffuse * pointLightColors[i]);

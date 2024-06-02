@@ -19,6 +19,7 @@ struct DirLight
 
 struct PointLight
 {
+    bool isActive;
     vec3 position;
 
     vec3 ambient;
@@ -32,6 +33,7 @@ struct PointLight
 
 struct SpotLight
 {
+    bool isActive;
     vec3 position;
     vec3 direction;
     float cutOff;
@@ -161,15 +163,17 @@ void main()
     // Phase 1: Directional lighting
     result += calcDirLight(dirLight, norm, viewDir);
     // Phase 2: Point lights
-//    for (int i = 0; i < NR_POINT_LIGHTS; i++)
-//    {
-//        result += calcPointLight(pointLights[i], norm, FragPos, viewDir);
-//    }
+    for (int i = 0; i < NR_POINT_LIGHTS; i++)
+    {
+        if (!pointLights[i].isActive) { continue; }
+        result += calcPointLight(pointLights[i], norm, FragPos, viewDir);
+    }
     // Phase 3: Spot light
-//    for (int i = 0; i < NR_SPOT_LIGHTS; i++)
-//    {
-//        result += calcSpotLight(spotLights[i], norm, FragPos, viewDir);
-//    }
+    for (int i = 0; i < NR_SPOT_LIGHTS; i++)
+    {
+        if (!spotLights[i].isActive) { continue; }
+        result += calcSpotLight(spotLights[i], norm, FragPos, viewDir);
+    }
 
     FragColor = vec4(result, 1.0);
 }
