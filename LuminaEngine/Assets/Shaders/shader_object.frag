@@ -1,8 +1,8 @@
 #version 330 core
 out vec4 FragColor;
 in vec3 FragPos;
-in vec3 Normal;
 in vec2 TexCoords;
+in mat3 TBN;
 
 uniform vec3 viewPos;
 
@@ -68,7 +68,7 @@ vec3 calcSpotLight(SpotLight light, vec3 normal, vec3 fragPos, vec3 viewDir);
 
 vec3 calcDirLight(DirLight light, vec3 normal, vec3 viewDir)
 {
-    vec3 lightDir = normalize(-light.direction);
+    vec3 lightDir = TBN * normalize(-light.direction);
 
     // Ambient
     vec3 ambient = texture(material.texture_diffuse1, TexCoords).rgb * light.ambient;
@@ -91,7 +91,7 @@ vec3 calcDirLight(DirLight light, vec3 normal, vec3 viewDir)
 vec3 calcPointLight(PointLight light, vec3 normal, vec3 fragPos, vec3 viewDir)
 {
     // Light direction from fragment to light
-    vec3 lightDir = normalize(light.position - fragPos);
+    vec3 lightDir = TBN * normalize(light.position - fragPos);
 
     // Ambient
     vec3 ambient = texture(material.texture_diffuse1, TexCoords).rgb * light.ambient;
@@ -119,7 +119,7 @@ vec3 calcPointLight(PointLight light, vec3 normal, vec3 fragPos, vec3 viewDir)
 vec3 calcSpotLight(SpotLight light, vec3 normal, vec3 fragPos, vec3 viewDir)
 {
     // Light direction from fragment to light
-    vec3 lightDir = normalize(light.position - fragPos);
+    vec3 lightDir = TBN * normalize(light.position - fragPos);
 
     // Ambient
     vec3 ambient = texture(material.texture_diffuse1, TexCoords).rgb * light.ambient;
@@ -153,14 +153,11 @@ vec3 calcSpotLight(SpotLight light, vec3 normal, vec3 fragPos, vec3 viewDir)
 
 void main()
 {
-//    vec3 normal = texture(material.texture_normal1, TexCoords).rgb;
-//    vec3 norm = normalize(normal * 2.0 - 1.0);
-    // TODO: This fixes the issue where shadows/lights not appearing on the
-    // back but lost normal map details. Find a way to get them back.
-    vec3 norm = normalize(Normal);
+    vec3 normal = texture(material.texture_normal1, TexCoords).rgb;
+    vec3 norm = normalize(normal * 2.0 - 1.0);
 
     // Light reflection from fragment to camera/eye
-    vec3 viewDir = normalize(viewPos - FragPos);
+    vec3 viewDir = TBN * normalize(viewPos - FragPos);
 
     vec3 result;
 

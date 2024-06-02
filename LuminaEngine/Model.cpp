@@ -29,7 +29,7 @@ void Model::Draw(Shader& shader)
 void Model::loadModel(const std::string& path)
 {
     Assimp::Importer importer;
-    const aiScene* scene = importer.ReadFile(path, aiProcess_Triangulate);
+    const aiScene* scene = importer.ReadFile(path, aiProcess_Triangulate | aiProcess_CalcTangentSpace);
 
     if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode)
     {
@@ -79,6 +79,15 @@ Mesh Model::processMesh(aiMesh* mesh, const aiScene* scene)
             vector.y = mesh->mNormals[i].y;
             vector.z = mesh->mNormals[i].z;
             vertex.normal = vector;
+        }
+
+        // Process vertex tangent
+        if (mesh->HasTangentsAndBitangents())
+        {
+            vector.x = mesh->mTangents[i].x;
+            vector.y = mesh->mTangents[i].y;
+            vector.z = mesh->mTangents[i].z;
+            vertex.tangent = vector;
         }
 
         // Process texture coordinates
