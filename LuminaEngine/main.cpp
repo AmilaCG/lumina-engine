@@ -138,7 +138,7 @@ void setLightParameters()
         backpackShader->setVec3(pointLight + ".specular", specular);
         // https://wiki.ogre3d.org/tiki-index.php?page=-Point+Light+Attenuation
         backpackShader->setFloat(pointLight + ".constant", 1.0f);
-        backpackShader->setFloat(pointLight + ".diffuse", 0.09f);
+        backpackShader->setFloat(pointLight + ".linear", 0.09f);
         backpackShader->setFloat(pointLight + ".quadratic", 0.032f);
         i++;
     }
@@ -152,7 +152,7 @@ void setLightParameters()
     backpackShader->setVec3("spotLight.diffuse", diffuse);
     backpackShader->setVec3("spotLight.specular", specular);
     backpackShader->setFloat("spotLight.constant", 1.0f);
-    backpackShader->setFloat("spotLight.diffuse", 0.09f);
+    backpackShader->setFloat("spotLight.linear", 0.09f);
     backpackShader->setFloat("spotLight.quadratic", 0.032f);
 }
 
