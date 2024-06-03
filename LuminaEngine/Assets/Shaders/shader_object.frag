@@ -1,18 +1,17 @@
 #version 330 core
+
+#define NR_LIGHTS 10
+
 out vec4 FragColor;
-in vec3 FragPos;
 in vec2 TexCoords;
-in mat3 TBN;
-
-uniform vec3 viewPos;
-
-#define NR_POINT_LIGHTS 50
-#define NR_SPOT_LIGHTS  50
+in vec3 TangentDirLightDirection;
+in vec3 TangentPointLightPos[NR_LIGHTS];
+in vec3 TangentSpotLightPos[NR_LIGHTS];
+in vec3 TangentViewPos;
+in vec3 TangentFragPos;
 
 struct DirLight
 {
-    vec3 direction;
-
     vec3 ambient;
     vec3 diffuse;
     vec3 specular;
@@ -21,7 +20,6 @@ struct DirLight
 struct PointLight
 {
     bool isActive;
-    vec3 position;
 
     vec3 ambient;
     vec3 diffuse;
@@ -35,7 +33,7 @@ struct PointLight
 struct SpotLight
 {
     bool isActive;
-    vec3 position;
+
     vec3 direction;
     float cutOff;
     float outerCutOff;
@@ -58,8 +56,8 @@ struct Material
 };
 
 uniform DirLight dirLight;
-uniform PointLight pointLights[NR_POINT_LIGHTS];
-uniform SpotLight spotLights[NR_SPOT_LIGHTS];
+uniform PointLight pointLights[NR_LIGHTS];
+uniform SpotLight spotLights[NR_LIGHTS];
 uniform Material material;
 
 vec3 calcDirLight(DirLight light, vec3 normal, vec3 viewDir);
@@ -68,7 +66,7 @@ vec3 calcSpotLight(SpotLight light, vec3 normal, vec3 fragPos, vec3 viewDir);
 
 vec3 calcDirLight(DirLight light, vec3 normal, vec3 viewDir)
 {
-    vec3 lightDir = TBN * normalize(-light.direction);
+    vec3 lightDir = normalize(-TangentDirLightDirection);
 
     // Ambient
     vec3 ambient = texture(material.texture_diffuse1, TexCoords).rgb * light.ambient;
@@ -88,10 +86,10 @@ vec3 calcDirLight(DirLight light, vec3 normal, vec3 viewDir)
     return (ambient + diffuse + specular);
 }
 
-vec3 calcPointLight(PointLight light, vec3 normal, vec3 fragPos, vec3 viewDir)
+vec3 calcPointLight(PointLight light, vec3 lightPos, vec3 normal, vec3 fragPos, vec3 viewDir)
 {
     // Light direction from fragment to light
-    vec3 lightDir = TBN * normalize(light.position - fragPos);
+    vec3 lightDir = normalize(lightPos - fragPos);
 
     // Ambient
     vec3 ambient = texture(material.texture_diffuse1, TexCoords).rgb * light.ambient;
@@ -106,7 +104,7 @@ vec3 calcPointLight(PointLight light, vec3 normal, vec3 fragPos, vec3 viewDir)
     vec3 specular = spec * texture(material.texture_specular1, TexCoords).rgb * light.specular;
 
     // Attenuation
-    float distance = length(light.position - fragPos);
+    float distance = length(lightPos - fragPos);
     float attenuation = 1.0 / (light.constant + light.linear * distance + 
                             light.quadratic * (distance * distance));
     ambient *= attenuation;
@@ -116,10 +114,10 @@ vec3 calcPointLight(PointLight light, vec3 normal, vec3 fragPos, vec3 viewDir)
     return (ambient + diffuse + specular);
 }
 
-vec3 calcSpotLight(SpotLight light, vec3 normal, vec3 fragPos, vec3 viewDir)
+vec3 calcSpotLight(SpotLight light, vec3 lightPos, vec3 normal, vec3 fragPos, vec3 viewDir)
 {
     // Light direction from fragment to light
-    vec3 lightDir = TBN * normalize(light.position - fragPos);
+    vec3 lightDir = normalize(lightPos - fragPos);
 
     // Ambient
     vec3 ambient = texture(material.texture_diffuse1, TexCoords).rgb * light.ambient;
@@ -141,7 +139,7 @@ vec3 calcSpotLight(SpotLight light, vec3 normal, vec3 fragPos, vec3 viewDir)
     specular *= intensity;
 
     // Attenuation
-    float distance = length(light.position - fragPos);
+    float distance = length(lightPos - fragPos);
     float attenuation = 1.0 / (light.constant + light.linear * distance + 
                             light.quadratic * (distance * distance));
     ambient *= attenuation;
@@ -157,23 +155,22 @@ void main()
     vec3 norm = normalize(normal * 2.0 - 1.0);
 
     // Light reflection from fragment to camera/eye
-    vec3 viewDir = TBN * normalize(viewPos - FragPos);
+    vec3 viewDir = normalize(TangentViewPos - TangentFragPos);
 
     vec3 result;
 
     // Phase 1: Directional lighting
     result += calcDirLight(dirLight, norm, viewDir);
-    // Phase 2: Point lights
-    for (int i = 0; i < NR_POINT_LIGHTS; i++)
+
+    for (int i = 0; i < NR_LIGHTS; i++)
     {
+        // Phase 2: Point lights
         if (!pointLights[i].isActive) { continue; }
-        result += calcPointLight(pointLights[i], norm, FragPos, viewDir);
-    }
-    // Phase 3: Spot light
-    for (int i = 0; i < NR_SPOT_LIGHTS; i++)
-    {
+        result += calcPointLight(pointLights[i], TangentPointLightPos[i], norm, TangentFragPos, viewDir);
+
+        // Phase 3: Spot light
         if (!spotLights[i].isActive) { continue; }
-        result += calcSpotLight(spotLights[i], norm, FragPos, viewDir);
+        result += calcSpotLight(spotLights[i], TangentSpotLightPos[i], norm, TangentFragPos, viewDir);
     }
 
     FragColor = vec4(result, 1.0);

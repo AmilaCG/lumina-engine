@@ -118,7 +118,7 @@ void setLightParameters()
     glm::vec3 specular(1.0f);
 
     // Directional light
-    backpackShader->setVec3("dirLight.direction", glm::vec3(-0.2f, -1.0f, -0.3f));
+    backpackShader->setVec3("dirLightDirection", glm::vec3(-0.2f, -1.0f, -0.3f));
     backpackShader->setVec3("dirLight.ambient", ambient);
     backpackShader->setVec3("dirLight.diffuse", diffuse);
     backpackShader->setVec3("dirLight.specular", specular);
@@ -127,12 +127,15 @@ void setLightParameters()
     int i = 0;
     for (const glm::vec3& position : pointLightPositions)
     {
-        std::ostringstream oss;
-        oss << "pointLights[" << i << "]";
-        std::string pointLight = oss.str();
+        std::ostringstream ossLightPos;
+        ossLightPos << "pointLightPos[" << i << "]";
+        std::string pointLightPos = ossLightPos.str();
+        backpackShader->setVec3(pointLightPos, position);
 
+        std::ostringstream ossLightParams;
+        ossLightParams << "pointLights[" << i << "]";
+        std::string pointLight = ossLightParams.str();
         backpackShader->setInt(pointLight + ".isActive", 1);
-        backpackShader->setVec3(pointLight + ".position", position);
         backpackShader->setVec3(pointLight + ".ambient", ambient * pointLightColors[i]);
         backpackShader->setVec3(pointLight + ".diffuse", diffuse * pointLightColors[i]);
         backpackShader->setVec3(pointLight + ".specular", specular);
