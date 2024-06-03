@@ -147,16 +147,17 @@ void setLightParameters()
     }
 
     // Spot light
-    backpackShader->setVec3("spotLight.position", glm::vec3(cameraPosition));
-    backpackShader->setVec3("spotLight.direction", glm::vec3(cameraFront));
-    backpackShader->setFloat("spotLight.cutOff", glm::cos(glm::radians(12.5f)));
-    backpackShader->setFloat("spotLight.outerCutOff", glm::cos(glm::radians(18.5f)));
-    backpackShader->setVec3("spotLight.ambient", glm::vec3(0.2f));
-    backpackShader->setVec3("spotLight.diffuse", diffuse);
-    backpackShader->setVec3("spotLight.specular", specular);
-    backpackShader->setFloat("spotLight.constant", 1.0f);
-    backpackShader->setFloat("spotLight.linear", 0.09f);
-    backpackShader->setFloat("spotLight.quadratic", 0.032f);
+    backpackShader->setInt("spotLights[0].isActive", 0);
+    backpackShader->setVec3("spotLightPos[0]", cameraPosition);
+    backpackShader->setVec3("spotLightDir[0]", cameraFront);
+    backpackShader->setFloat("spotLights[0].cutOff", glm::cos(glm::radians(12.5f)));
+    backpackShader->setFloat("spotLights[0].outerCutOff", glm::cos(glm::radians(18.5f)));
+    backpackShader->setVec3("spotLights[0].ambient", glm::vec3(0.2f));
+    backpackShader->setVec3("spotLights[0].diffuse", diffuse);
+    backpackShader->setVec3("spotLights[0].specular", specular);
+    backpackShader->setFloat("spotLights[0].constant", 1.0f);
+    backpackShader->setFloat("spotLights[0].linear", 0.09f);
+    backpackShader->setFloat("spotLights[0].quadratic", 0.032f);
 }
 
 void renderLoop(GLFWwindow* window)

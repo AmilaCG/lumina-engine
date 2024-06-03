@@ -1,12 +1,13 @@
 #version 330 core
 
-#define NR_LIGHTS 10
+#define NR_LIGHTS 5
 
 out vec4 FragColor;
 in vec2 TexCoords;
 in vec3 TangentDirLightDirection;
 in vec3 TangentPointLightPos[NR_LIGHTS];
 in vec3 TangentSpotLightPos[NR_LIGHTS];
+in vec3 TangentSpotLightDir[NR_LIGHTS];
 in vec3 TangentViewPos;
 in vec3 TangentFragPos;
 
@@ -34,7 +35,6 @@ struct SpotLight
 {
     bool isActive;
 
-    vec3 direction;
     float cutOff;
     float outerCutOff;
 
@@ -114,7 +114,7 @@ vec3 calcPointLight(PointLight light, vec3 lightPos, vec3 normal, vec3 fragPos, 
     return (ambient + diffuse + specular);
 }
 
-vec3 calcSpotLight(SpotLight light, vec3 lightPos, vec3 normal, vec3 fragPos, vec3 viewDir)
+vec3 calcSpotLight(SpotLight light, vec3 lightPos, vec3 spotDir, vec3 normal, vec3 fragPos, vec3 viewDir)
 {
     // Light direction from fragment to light
     vec3 lightDir = normalize(lightPos - fragPos);
@@ -132,7 +132,7 @@ vec3 calcSpotLight(SpotLight light, vec3 lightPos, vec3 normal, vec3 fragPos, ve
     vec3 specular = spec * texture(material.texture_specular1, TexCoords).rgb * light.specular;
 
     // Spotlight with soft edges
-    float theta = dot(lightDir, normalize(-light.direction));
+    float theta = dot(lightDir, normalize(-spotDir));
     float epsilon = light.cutOff - light.outerCutOff;
     float intensity = clamp((theta - light.outerCutOff) / epsilon, 0.0, 1.0);
     diffuse *= intensity;
@@ -165,12 +165,25 @@ void main()
     for (int i = 0; i < NR_LIGHTS; i++)
     {
         // Phase 2: Point lights
-        if (!pointLights[i].isActive) { continue; }
-        result += calcPointLight(pointLights[i], TangentPointLightPos[i], norm, TangentFragPos, viewDir);
+        if (pointLights[i].isActive)
+        {
+            result += calcPointLight(pointLights[i],
+                                     TangentPointLightPos[i],
+                                     norm,
+                                     TangentFragPos,
+                                     viewDir);
+        }
 
         // Phase 3: Spot light
-        if (!spotLights[i].isActive) { continue; }
-        result += calcSpotLight(spotLights[i], TangentSpotLightPos[i], norm, TangentFragPos, viewDir);
+        if (spotLights[i].isActive)
+        {
+            result += calcSpotLight(spotLights[i],
+                                  TangentSpotLightPos[i],
+                                  TangentSpotLightDir[i],
+                                  norm,
+                                  TangentFragPos,
+                                  viewDir);
+        }
     }
 
     FragColor = vec4(result, 1.0);
