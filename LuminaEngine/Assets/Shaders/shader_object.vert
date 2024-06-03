@@ -27,6 +27,8 @@ void main()
 
     vec3 T = normalize(vec3(model * vec4(aTangent, 0.0)));
     vec3 N = normalize(vec3(model * vec4(aNormal, 0.0)));
+    // Re-orthogonalize T with respect to N
+    T = normalize(T - dot(T, N) * N);
     vec3 B = cross(N, T);
     mat3 TBN = transpose(mat3(T, B, N));
     TangentViewPos = TBN * viewPos;
