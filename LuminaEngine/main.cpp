@@ -177,7 +177,7 @@ void renderLoop(GLFWwindow* window)
     backpackShader->use();
 
     setLightParameters();
-    backpackShader->setFloat("material.shininess", 64.0f);
+    backpackShader->setFloat("material.shininess", 192.0f);
 
     glm::mat4 view = glm::lookAt(cameraPosition, cameraPosition + cameraFront, world_up);
     backpackShader->setMat4("view", view);
