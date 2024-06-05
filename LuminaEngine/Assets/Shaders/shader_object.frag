@@ -13,6 +13,8 @@ in vec3 TangentFragPos;
 
 struct DirLight
 {
+    bool isActive;
+
     vec3 ambient;
     vec3 diffuse;
     vec3 specular;
@@ -149,7 +151,10 @@ void main()
     vec3 result;
 
     // Phase 1: Directional lighting
-    result += calcDirLight(dirLight, norm, viewDir);
+    if (dirLight.isActive)
+    {
+        result += calcDirLight(dirLight, norm, viewDir);
+    }
 
     for (int i = 0; i < NR_LIGHTS; i++)
     {

@@ -118,6 +118,7 @@ void setLightParameters()
     glm::vec3 specular(1.0f);
 
     // Directional light
+    backpackShader->setInt("dirLight.isActive", 1);
     backpackShader->setVec3("dirLightDirection", glm::vec3(-0.2f, -1.0f, -0.3f));
     backpackShader->setVec3("dirLight.ambient", ambient);
     backpackShader->setVec3("dirLight.diffuse", diffuse);
@@ -194,9 +195,6 @@ void renderLoop(GLFWwindow* window)
     model = glm::translate(model, glm::vec3(pos[0], pos[1], pos[2]));
     model = glm::scale(model, glm::vec3(scale[0], scale[1], scale[2]));
     backpackShader->setMat4("model", model);
-
-    glm::mat3 normal = glm::mat3(glm::transpose(glm::inverse(model)));
-    backpackShader->setMat3("normalMat", normal);
 
     guitarBackpackModel->Draw(*backpackShader);
 
