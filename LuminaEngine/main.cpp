@@ -177,6 +177,7 @@ void renderLoop(GLFWwindow* window)
 
     backpackShader->use();
 
+    backpackShader->setFloat("gamma", 2.2f);
     setLightParameters();
     backpackShader->setFloat("material.shininess", 192.0f);
 

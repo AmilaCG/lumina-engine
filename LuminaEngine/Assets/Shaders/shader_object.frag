@@ -57,6 +57,7 @@ struct Material
     float     shininess;
 };
 
+uniform float gamma;
 uniform DirLight dirLight;
 uniform PointLight pointLights[NR_LIGHTS];
 uniform SpotLight spotLights[NR_LIGHTS];
@@ -182,7 +183,6 @@ void main()
 
     // TODO: Apply gamma correction in a post-processing stage
     // Apply gamma correction
-    float gamma = 2.2;
     result = pow(result, vec3(1.0/gamma));
     FragColor = vec4(result, 1.0);
 }

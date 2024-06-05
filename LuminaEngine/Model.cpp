@@ -138,7 +138,7 @@ Mesh Model::processMesh(aiMesh* mesh, const aiScene* scene)
     return Mesh(verticies, indices, textures);
 }
 
-std::vector<Texture> Model::loadMaterialTextures(aiMaterial* mat, aiTextureType type, std::string typeName)
+std::vector<Texture> Model::loadMaterialTextures(aiMaterial* mat, aiTextureType type, const std::string& typeName)
 {
     std::vector<Texture> textures;
     for (unsigned int i = 0; i < mat->GetTextureCount(type); i++)
@@ -157,8 +157,12 @@ std::vector<Texture> Model::loadMaterialTextures(aiMaterial* mat, aiTextureType 
         }
         if (skip) { continue; }
 
+        // Diffuse textures are almost always in the sRGB space but textures such as specular
+        // and normal are usually in the linear space. Therefore, only convert diffuse textures
+        // into linear space when loading.
+        bool shouldCorrectGamma = type == aiTextureType_DIFFUSE;
         Texture texture;
-        texture.id = textureFromFile(str.C_Str(), this->directory);
+        texture.id = loadTexture(str.C_Str(), this->directory, shouldCorrectGamma);
         texture.type = typeName;
         texture.name = str.C_Str();
         textures.push_back(texture);
@@ -167,7 +171,7 @@ std::vector<Texture> Model::loadMaterialTextures(aiMaterial* mat, aiTextureType 
     return textures;
 }
 
-unsigned int Model::textureFromFile(const std::string& fileName, const std::string& directory)
+unsigned int Model::loadTexture(const std::string& fileName, const std::string& directory, bool gammaCorrection)
 {
     std::string path = directory + '/' + fileName;
     unsigned int textureID = 0;
@@ -176,24 +180,27 @@ unsigned int Model::textureFromFile(const std::string& fileName, const std::stri
     unsigned char* data = stbi_load(path.c_str(), &width, &height, &nrComponents, 0);
     if (data)
     {
-        GLenum format{};
+        GLenum internalFormat;
+        GLenum dataFormat;
         switch (nrComponents)
         {
         case 1:
-            format = GL_RED;
+            internalFormat = dataFormat = GL_RED;
             break;
         case 3:
-            format = GL_RGB;
+            internalFormat = gammaCorrection ? GL_SRGB : GL_RGB;
+            dataFormat = GL_RGB;
             break;
         case 4:
-            format = GL_RGBA;
+            internalFormat = gammaCorrection ? GL_SRGB_ALPHA : GL_RGBA;
+            dataFormat = GL_RGBA;
             break;
         }
 
         glGenTextures(1, &textureID);
 
         glBindTexture(GL_TEXTURE_2D, textureID);
-        glTexImage2D(GL_TEXTURE_2D, 0, format, width, height, 0, format, GL_UNSIGNED_BYTE, data);
+        glTexImage2D(GL_TEXTURE_2D, 0, internalFormat, width, height, 0, dataFormat, GL_UNSIGNED_BYTE, data);
         glGenerateMipmap(GL_TEXTURE_2D);
 
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
