@@ -221,27 +221,38 @@ void renderLoop(GLFWwindow* window)
 
 void displayUI()
 {
-    ImGuiWindowFlags window_flags = 0;
-    window_flags |= ImGuiWindowFlags_NoMove;
-    window_flags |= ImGuiWindowFlags_NoCollapse;
-    window_flags |= ImGuiWindowFlags_NoResize;
-    window_flags |= ImGuiWindowFlags_NoTitleBar;
+    const ImGuiIO& io = ImGui::GetIO();
+    const ImGuiViewport* viewport = ImGui::GetMainViewport();
+    constexpr float offset = 10;
 
-    ImGui::SetNextWindowPos(ImVec2(10, 10), ImGuiCond_Always);
+    ImGuiWindowFlags transform_window_flags = 0;
+    transform_window_flags |= ImGuiWindowFlags_NoMove;
+    transform_window_flags |= ImGuiWindowFlags_NoCollapse;
+    transform_window_flags |= ImGuiWindowFlags_NoResize;
+    transform_window_flags |= ImGuiWindowFlags_NoTitleBar;
+
+    ImGui::SetNextWindowPos(ImVec2(viewport->WorkPos.x + offset, viewport->WorkPos.y + offset),
+        ImGuiCond_Always);
     ImGui::SetNextWindowSize(ImVec2(300, 110), ImGuiCond_Always);
-
-    if (!ImGui::Begin("Transform", nullptr, window_flags))
-    {
-        // Early out if the window is collapsed, as an optimization.
-        ImGui::End();
-        return;
-    }
-
+    ImGui::Begin("Transform", nullptr, transform_window_flags);
     ImGui::SeparatorText("Transform");
     ImGui::DragFloat3("Position", pos, 0.001f);
     ImGui::DragFloat3("Rotation", rot, 0.01f);
     ImGui::DragFloat3("Scale", scale, 0.001f);
+    ImGui::End();
 
+    ImGuiWindowFlags stats_window_flags = 0;
+    stats_window_flags |= ImGuiWindowFlags_NoMove;
+    stats_window_flags |= ImGuiWindowFlags_NoCollapse;
+    stats_window_flags |= ImGuiWindowFlags_NoTitleBar;
+    stats_window_flags |= ImGuiWindowFlags_AlwaysAutoResize;
+
+    ImGui::Begin("Stats", nullptr, stats_window_flags);
+    ImGui::SetWindowPos(ImVec2(viewport->WorkSize.x - ImGui::GetWindowWidth() - offset,
+                               viewport->WorkPos.y + offset), ImGuiCond_Always);
+    ImGui::SeparatorText("Stats");
+    ImGui::Text("FPS: %.1f", io.Framerate);
+    ImGui::Text("Avg: %.3f ms", 1000.0f / io.Framerate);
     ImGui::End();
 }
 
@@ -377,7 +388,7 @@ int main()
 
     while (!glfwWindowShouldClose(window))
     {
-        double currentTime = glfwGetTime();
+        const double currentTime = glfwGetTime();
         deltaTime = currentTime - lastFrameTime;
         if (isLeftMouseHolding)
         {
