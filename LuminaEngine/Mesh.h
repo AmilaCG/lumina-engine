@@ -26,7 +26,7 @@ public:
     Mesh(const std::vector<Vertex>& verticies,
          const std::vector<unsigned int>& indices,
          const std::vector<Texture>& textures);
-    void Draw(Shader& shader);
+    unsigned int Draw(Shader& shader);
 
 public:
     // Mesh data

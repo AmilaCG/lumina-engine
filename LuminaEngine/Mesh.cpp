@@ -43,7 +43,7 @@ void Mesh::setupMesh()
     glBindVertexArray(0); // Unbind
 }
 
-void Mesh::Draw(Shader& shader)
+unsigned int Mesh::Draw(Shader& shader)
 {
     unsigned int diffuseNr = 1;
     unsigned int specularNr = 1;
@@ -80,4 +80,6 @@ void Mesh::Draw(Shader& shader)
     glBindVertexArray(vao);
     glDrawElements(GL_TRIANGLES, indices.size(), GL_UNSIGNED_INT, 0);
     glBindVertexArray(0);
+
+    return indices.size();
 }

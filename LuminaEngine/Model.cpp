@@ -18,12 +18,14 @@ Model::Model(const std::string& path)
     loadModel(path);
 }
 
-void Model::Draw(Shader& shader)
+unsigned int Model::Draw(Shader& shader)
 {
+    unsigned int indiceCount = 0;
     for (Mesh& mesh : meshes)
     {
-        mesh.Draw(shader);
+        indiceCount += mesh.Draw(shader);
     }
+    return indiceCount;
 }
 
 void Model::loadModel(const std::string& path)

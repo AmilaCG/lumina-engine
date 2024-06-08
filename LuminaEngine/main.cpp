@@ -20,7 +20,7 @@ void scroll_callback(GLFWwindow* window, double xOffset, double yOffset);
 void renderLoop(GLFWwindow* window);
 void setLightParameters();
 glm::vec3 getCameraDirection(double yaw, double pitch);
-void displayUI();
+void displayUI(const unsigned int& triangleCount);
 void deinit();
 
 const unsigned int SCR_WIDTH = 1280;
@@ -163,14 +163,13 @@ void setLightParameters()
 
 void renderLoop(GLFWwindow* window)
 {
+    unsigned int indiceCount = 0;
     processInput(window);
     glfwPollEvents();
 
     ImGui_ImplOpenGL3_NewFrame();
     ImGui_ImplGlfw_NewFrame();
     ImGui::NewFrame();
-
-    displayUI();
 
     glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -197,7 +196,7 @@ void renderLoop(GLFWwindow* window)
     model = glm::scale(model, glm::vec3(scale[0], scale[1], scale[2]));
     backpackShader->setMat4("model", model);
 
-    guitarBackpackModel->Draw(*backpackShader);
+    indiceCount += guitarBackpackModel->Draw(*backpackShader);
 
     lightShader->use();
     lightShader->setMat4("view", view);
@@ -213,13 +212,16 @@ void renderLoop(GLFWwindow* window)
         lightPreview->Draw(*lightShader, pointLightColors[i++]);
     }
 
+    const unsigned int triCount = indiceCount / 3;
+    displayUI(triCount);
+
     ImGui::Render();
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
     glfwSwapBuffers(window);
 }
 
-void displayUI()
+void displayUI(const unsigned int& triangleCount)
 {
     const ImGuiIO& io = ImGui::GetIO();
     const ImGuiViewport* viewport = ImGui::GetMainViewport();
@@ -253,6 +255,7 @@ void displayUI()
     ImGui::SeparatorText("Stats");
     ImGui::Text("FPS: %.1f", io.Framerate);
     ImGui::Text("Avg: %.3f ms", 1000.0f / io.Framerate);
+    ImGui::Text("Triangles: %d", triangleCount);
     ImGui::End();
 }
 

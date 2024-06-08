@@ -10,7 +10,7 @@ class Model
 {
 public:
     explicit Model(const std::string& path);
-    void Draw(Shader& shader);
+    unsigned int Draw(Shader& shader);
 
 private:
     void loadModel(const std::string& path);
