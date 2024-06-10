@@ -1,9 +1,9 @@
 # Lumina Engine
-Developing an OpenGL-based rendering engine while learning basic concepts from [learnopengl.com](https://learnopengl.com/). This project aims to build a [physically based](https://en.wikipedia.org/wiki/Physically_based_rendering) rendering engine which ultimately does [path tracing](https://blogs.nvidia.com/blog/what-is-path-tracing/).  
+Developing an OpenGL-based rendering engine while learning basic concepts from [learnopengl.com](https://learnopengl.com/). This project aims to build a [physically based](https://en.wikipedia.org/wiki/Physically_based_rendering) rendering (PBR) engine which ultimately does [path tracing](https://blogs.nvidia.com/blog/what-is-path-tracing/).  
 
 ## Current Progress
 ![Demo](Docs/demo.png)
-*Snapshot of the current progress. 3D model is from https://skfb.ly/6QZxW*
+*Snapshot of the current progress. 3D model is from https://skfb.ly/6QZxW*.
 
 <br>
 
