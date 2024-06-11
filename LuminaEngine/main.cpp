@@ -193,23 +193,24 @@ void renderLoop(GLFWwindow* window)
     ImGui_ImplGlfw_NewFrame();
     ImGui::NewFrame();
 
+    const glm::mat4 view = glm::lookAt(cameraPosition, cameraPosition + cameraFront, world_up);
+    const glm::mat4 projection = glm::perspective(glm::radians(fov),
+        static_cast<float>(SCR_WIDTH) / static_cast<float>(SCR_HEIGHT), 0.1f, 100.0f);
+
     // Bind to framebuffer and draw scene as we normally would to color texture
     glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
     glEnable(GL_DEPTH_TEST); // Enable depth testing (disabled for rendering screen-space quad)
 
-    glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
+    glClearColor(0.01f, 0.01f, 0.01f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     backpackShader->use();
 
-    backpackShader->setFloat("gamma", 2.2f);
     setLightParameters();
     backpackShader->setFloat("material.shininess", 192.0f);
 
-    glm::mat4 view = glm::lookAt(cameraPosition, cameraPosition + cameraFront, world_up);
     backpackShader->setMat4("view", view);
 
-    glm::mat4 projection = glm::perspective(glm::radians(fov), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
     backpackShader->setMat4("projection", projection);
 
     backpackShader->setVec3("viewPos", cameraPosition);
@@ -243,6 +244,7 @@ void renderLoop(GLFWwindow* window)
     glClear(GL_COLOR_BUFFER_BIT);
 
     screenShader->use();
+    screenShader->setFloat("gamma", 2.2f);
     // TODO: Find out why the texture unit is 2? Isn't that the normal map?
     screenShader->setInt("screenTexture", 2);
     glBindVertexArray(quadVAO);
