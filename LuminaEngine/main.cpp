@@ -5,6 +5,8 @@
 #include <imgui.h>
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_opengl3.h>
+#define STB_IMAGE_IMPLEMENTATION
+#include <stb_image.h>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
@@ -39,6 +41,9 @@ const char* LIGHT_F_SHADER_PATH = "Assets/Shaders/shader_light.frag";
 const char* SCR_V_SHADER_PATH = "Assets/Shaders/shader_screen.vert";
 const char* SCR_F_SHADER_PATH = "Assets/Shaders/shader_screen.frag";
 
+const char* SKYBOX_V_SHADER_PATH = "Assets/Shaders/shader_skybox.vert";
+const char* SKYBOX_F_SHADER_PATH = "Assets/Shaders/shader_skybox.frag";
+
 static float pos[3];
 static float rot[3];
 static float scale[] = {1.0f, 1.0f, 1.0f};
@@ -70,12 +75,25 @@ LightPreview* lightPreview;
 Shader* backpackShader;
 Shader* lightShader;
 Shader* screenShader;
+Shader* skyboxShader;
 
 unsigned int framebuffer;
 unsigned int textureColorbuffer;
 unsigned int rbo;
 unsigned int quadVAO;
 unsigned int quadVBO;
+
+unsigned int texCubemap;
+std::string cubemapFaces[] = {
+    "Assets/Textures/Skybox/right.jpg",
+    "Assets/Textures/Skybox/left.jpg",
+    "Assets/Textures/Skybox/top.jpg",
+    "Assets/Textures/Skybox/bottom.jpg",
+    "Assets/Textures/Skybox/front.jpg",
+    "Assets/Textures/Skybox/back.jpg",
+};
+unsigned int skyboxVAO;
+unsigned int skyboxVBO;
 
 glm::vec3 pointLightPositions[] = {
         glm::vec3(1.2f,  0.2f,  2.0f),
@@ -101,6 +119,51 @@ float quadVertices[] = {
     -1.0f,  1.0f,  0.0f, 1.0f,
      1.0f, -1.0f,  1.0f, 0.0f,
      1.0f,  1.0f,  1.0f, 1.0f
+};
+
+float skyboxVertices[] = {
+    // positions
+    -1.0f,  1.0f, -1.0f,
+    -1.0f, -1.0f, -1.0f,
+     1.0f, -1.0f, -1.0f,
+     1.0f, -1.0f, -1.0f,
+     1.0f,  1.0f, -1.0f,
+    -1.0f,  1.0f, -1.0f,
+
+    -1.0f, -1.0f,  1.0f,
+    -1.0f, -1.0f, -1.0f,
+    -1.0f,  1.0f, -1.0f,
+    -1.0f,  1.0f, -1.0f,
+    -1.0f,  1.0f,  1.0f,
+    -1.0f, -1.0f,  1.0f,
+
+     1.0f, -1.0f, -1.0f,
+     1.0f, -1.0f,  1.0f,
+     1.0f,  1.0f,  1.0f,
+     1.0f,  1.0f,  1.0f,
+     1.0f,  1.0f, -1.0f,
+     1.0f, -1.0f, -1.0f,
+
+    -1.0f, -1.0f,  1.0f,
+    -1.0f,  1.0f,  1.0f,
+     1.0f,  1.0f,  1.0f,
+     1.0f,  1.0f,  1.0f,
+     1.0f, -1.0f,  1.0f,
+    -1.0f, -1.0f,  1.0f,
+
+    -1.0f,  1.0f, -1.0f,
+     1.0f,  1.0f, -1.0f,
+     1.0f,  1.0f,  1.0f,
+     1.0f,  1.0f,  1.0f,
+    -1.0f,  1.0f,  1.0f,
+    -1.0f,  1.0f, -1.0f,
+
+    -1.0f, -1.0f, -1.0f,
+    -1.0f, -1.0f,  1.0f,
+     1.0f, -1.0f, -1.0f,
+     1.0f, -1.0f, -1.0f,
+    -1.0f, -1.0f,  1.0f,
+     1.0f, -1.0f,  1.0f
 };
 
 void processInput(GLFWwindow *window)
@@ -143,6 +206,7 @@ void sceneSetup(GLFWwindow* window)
     lightPreview = new LightPreview();
     lightShader = new Shader(LIGHT_V_SHADER_PATH, LIGHT_F_SHADER_PATH);
     screenShader = new Shader(SCR_V_SHADER_PATH, SCR_F_SHADER_PATH);
+    skyboxShader = new Shader(SKYBOX_V_SHADER_PATH, SKYBOX_F_SHADER_PATH);
 
     // IMGUI setup
     IMGUI_CHECKVERSION();
@@ -188,6 +252,39 @@ void sceneSetup(GLFWwindow* window)
         std::cout << "ERROR::FRAMEBUFFER:: Framebuffer is not complete!" << std::endl;
     }
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+    // Load cubemap
+    glGenTextures(1, &texCubemap);
+    glBindTexture(GL_TEXTURE_CUBE_MAP, texCubemap);
+    int width, height, nrChannels;
+    for (int i = 0; i < std::size(cubemapFaces); i++)
+    {
+        unsigned char* data = stbi_load(cubemapFaces[i].c_str(), &width, &height, &nrChannels, 0);
+        if (data)
+        {
+           glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
+        }
+        else
+        {
+            std::cout << "Cubemap tex failed to load at path: " << cubemapFaces[i] << std::endl;
+        }
+        stbi_image_free(data);
+    }
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+    glBindTexture(GL_TEXTURE_CUBE_MAP, 0);
+
+    // Skybox VAO
+    glGenVertexArrays(1, &skyboxVAO);
+    glGenBuffers(1, &skyboxVBO);
+    glBindVertexArray(skyboxVAO);
+    glBindBuffer(GL_ARRAY_BUFFER, skyboxVBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(skyboxVertices), &skyboxVertices, GL_STATIC_DRAW);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
 }
 
 void setLightParameters()
@@ -261,15 +358,24 @@ void renderLoop(GLFWwindow* window)
     glClearColor(0.01f, 0.01f, 0.01f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-    backpackShader->use();
+    // Draw the skybox
+    glDepthMask(false);
+    skyboxShader->use();
+    // Remove translation section of the view transform matrix by taking only the upper-left 3x3 matrix,
+    // so the skybox will rotate but not scale or move.
+    const auto viewSkybox = glm::mat4(glm::mat3(view));
+    skyboxShader->setMat4("view", viewSkybox);
+    skyboxShader->setMat4("projection", projection);
+    glBindVertexArray(skyboxVAO);
+    glBindTexture(GL_TEXTURE_CUBE_MAP, texCubemap);
+    glDrawArrays(GL_TRIANGLES, 0, 36);
+    glDepthMask(GL_TRUE);
 
+    backpackShader->use();
     setLightParameters();
     backpackShader->setFloat("material.shininess", 192.0f);
-
     backpackShader->setMat4("view", view);
-
     backpackShader->setMat4("projection", projection);
-
     backpackShader->setVec3("viewPos", cameraPosition);
 
     glm::mat4 model = glm::mat4(1.0f);
@@ -441,6 +547,8 @@ void deinit()
     delete(backpackShader);
     delete(lightPreview);
     delete(lightShader);
+    delete(screenShader);
+    delete(skyboxShader);
 }
 
 int main()
