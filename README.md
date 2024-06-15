@@ -14,7 +14,7 @@ Developing an OpenGL-based rendering engine while learning basic concepts from [
 | Diffuse, Specular and Normal map support | Done |
 | Blinn-Phong lighting | Done |
 | Gamma correction | Done |
-| Cubemap support | To do |
+| Skybox support | Done |
 | Anti-aliasing | To do |
 | Shadows | To do |
 | Parallax mapping | To do |
