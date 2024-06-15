@@ -359,19 +359,6 @@ void renderLoop(GLFWwindow* window)
     glClearColor(0.01f, 0.01f, 0.01f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-    // Draw the skybox
-    glDepthMask(false);
-    skyboxShader->use();
-    // Remove translation section of the view transform matrix by taking only the upper-left 3x3 matrix,
-    // so the skybox will rotate but not scale or move.
-    const auto viewSkybox = glm::mat4(glm::mat3(view));
-    skyboxShader->setMat4("view", viewSkybox);
-    skyboxShader->setMat4("projection", projection);
-    glBindVertexArray(skyboxVAO);
-    glBindTexture(GL_TEXTURE_CUBE_MAP, texCubemap);
-    glDrawArrays(GL_TRIANGLES, 0, 36);
-    glDepthMask(GL_TRUE);
-
     backpackShader->use();
     setLightParameters();
     backpackShader->setFloat("material.shininess", 192.0f);
@@ -403,16 +390,30 @@ void renderLoop(GLFWwindow* window)
         lightPreview->Draw(*lightShader, pointLightColors[i++]);
     }
 
+    // Draw the skybox
+    glDepthFunc(GL_LEQUAL); // Depth test passes when values are equal to depth buffer's content
+    skyboxShader->use();
+    // Remove translation section of the view transform matrix by taking only the upper-left 3x3 matrix,
+    // so the skybox will rotate but not scale or move.
+    const auto viewSkybox = glm::mat4(glm::mat3(view));
+    skyboxShader->setMat4("view", viewSkybox);
+    skyboxShader->setMat4("projection", projection);
+    glBindVertexArray(skyboxVAO);
+    glActiveTexture(GL_TEXTURE0); // TODO: Seems like the cubemap is bound to texture unit 0. Is this the norm?
+    glBindTexture(GL_TEXTURE_CUBE_MAP, texCubemap);
+    glDrawArrays(GL_TRIANGLES, 0, 36);
+    glDepthFunc(GL_LESS); // Set depth function back to default
+
     glBindFramebuffer(GL_FRAMEBUFFER, 0); // Back to default framebuffer
     glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT);
 
     screenShader->use();
     screenShader->setFloat("gamma", 2.0f);
-    // TODO: Find out why the texture unit is 2? Isn't that the normal map?
-    screenShader->setInt("screenTexture", 2);
+    screenShader->setInt("screenTexture", 0); // Expected texture unit is 0
     glBindVertexArray(quadVAO);
     glDisable(GL_DEPTH_TEST);
+    glActiveTexture(GL_TEXTURE0); // Just making sure the correct texture unit is activated
     glBindTexture(GL_TEXTURE_2D, textureColorbuffer);
     glDrawArrays(GL_TRIANGLES, 0, 6);
 

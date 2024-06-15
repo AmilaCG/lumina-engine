@@ -74,7 +74,9 @@ unsigned int Mesh::Draw(Shader& shader)
         shader.setInt(materialName, i);
         glBindTexture(GL_TEXTURE_2D, textures[i].id);
     }
-    //glActiveTexture(GL_TEXTURE0); // TODO: Why this??
+    // Reset active texture unit to 0 as a good practice. This is not mandatory.
+    // https://community.khronos.org/t/glactivetexture-before-drawing/73757/2
+    glActiveTexture(GL_TEXTURE0);
 
     // Draw
     glBindVertexArray(vao);
