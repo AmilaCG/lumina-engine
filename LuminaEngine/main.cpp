@@ -391,7 +391,10 @@ void renderLoop(GLFWwindow* window)
     }
 
     // Draw the skybox
-    glDepthFunc(GL_LEQUAL); // Depth test passes when values are equal to depth buffer's content
+    // Depth test passes when values are equal to depth buffer's content. Even though ideally this
+    // should be GL_EQUAL, some artifacts will occur on the skybox when panning because sometimes
+    // incoming pixel depth value < depth value in depth buffer, so we use GL_LEQUAL to avoid them
+    glDepthFunc(GL_LEQUAL);
     skyboxShader->use();
     // Remove translation section of the view transform matrix by taking only the upper-left 3x3 matrix,
     // so the skybox will rotate but not scale or move.
