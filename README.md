@@ -15,6 +15,8 @@ Developing an OpenGL-based rendering engine while learning basic concepts from [
 | Blinn-Phong lighting | Done |
 | Gamma correction | Done |
 | Skybox support | Done |
+| Environment reflections | Done |
+| Environment refractions | To do |
 | Anti-aliasing | To do |
 | Shadows | To do |
 | Parallax mapping | To do |
