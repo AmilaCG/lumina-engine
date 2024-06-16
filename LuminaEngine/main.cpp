@@ -85,12 +85,12 @@ unsigned int quadVBO;
 
 unsigned int texCubemap;
 std::string cubemapFaces[] = {
-    "Assets/Textures/Skybox/right.jpg",
-    "Assets/Textures/Skybox/left.jpg",
-    "Assets/Textures/Skybox/top.jpg",
-    "Assets/Textures/Skybox/bottom.jpg",
-    "Assets/Textures/Skybox/front.jpg",
-    "Assets/Textures/Skybox/back.jpg",
+    "Assets/Textures/Skybox/right.png",
+    "Assets/Textures/Skybox/left.png",
+    "Assets/Textures/Skybox/top.png",
+    "Assets/Textures/Skybox/bottom.png",
+    "Assets/Textures/Skybox/front.png",
+    "Assets/Textures/Skybox/back.png",
 };
 unsigned int skyboxVAO;
 unsigned int skyboxVBO;
@@ -263,7 +263,7 @@ void sceneSetup(GLFWwindow* window)
         if (data)
         {
            glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i,
-               0, GL_SRGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
+               0, GL_SRGB_ALPHA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
         }
         else
         {
@@ -340,6 +340,7 @@ void setLightParameters()
 
 void renderLoop(GLFWwindow* window)
 {
+    constexpr unsigned int skyboxTexUnit = 3; // Reserving unit 0, 1 and 2 for diff, spec and normal maps
     unsigned int indiceCount = 0;
     processInput(window);
     glfwPollEvents();
@@ -374,6 +375,12 @@ void renderLoop(GLFWwindow* window)
     model = glm::scale(model, glm::vec3(scale[0], scale[1], scale[2]));
     backpackShader->setMat4("model", model);
 
+    // Activate and bind skybox texture for reflections before drawing the model
+    glActiveTexture(GL_TEXTURE0 + skyboxTexUnit);
+    glBindTexture(GL_TEXTURE_CUBE_MAP, texCubemap);
+    backpackShader->setInt("skybox", skyboxTexUnit);
+    backpackShader->setBool("shouldEnableReflections", true);
+
     indiceCount += guitarBackpackModel->Draw(*backpackShader);
 
     lightShader->use();
@@ -401,9 +408,8 @@ void renderLoop(GLFWwindow* window)
     const auto viewSkybox = glm::mat4(glm::mat3(view));
     skyboxShader->setMat4("view", viewSkybox);
     skyboxShader->setMat4("projection", projection);
+    skyboxShader->setInt("skybox", skyboxTexUnit);
     glBindVertexArray(skyboxVAO);
-    glActiveTexture(GL_TEXTURE0); // TODO: Seems like the cubemap is bound to texture unit 0. Is this the norm?
-    glBindTexture(GL_TEXTURE_CUBE_MAP, texCubemap);
     glDrawArrays(GL_TRIANGLES, 0, 36);
     glDepthFunc(GL_LESS); // Set depth function back to default
 

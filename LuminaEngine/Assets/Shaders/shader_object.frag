@@ -10,6 +10,7 @@ in vec3 TangentSpotLightPos[NR_LIGHTS];
 in vec3 TangentSpotLightDir[NR_LIGHTS];
 in vec3 TangentViewPos;
 in vec3 TangentFragPos;
+in mat3 inversedTBN;
 
 struct DirLight
 {
@@ -61,6 +62,8 @@ uniform DirLight dirLight;
 uniform PointLight pointLights[NR_LIGHTS];
 uniform SpotLight spotLights[NR_LIGHTS];
 uniform Material material;
+uniform samplerCube skybox;
+uniform bool shouldEnableReflections;
 
 vec3 calcDirLight(DirLight light, vec3 normal, vec3 viewDir);
 vec3 calcPointLight(PointLight light, vec3 normal, vec3 fragPos, vec3 viewDir);
@@ -178,6 +181,16 @@ void main()
                                   TangentFragPos,
                                   viewDir);
         }
+    }
+
+    if (shouldEnableReflections)
+    {
+        // Calculating environment reflections
+        // Note that we are converting the reflection vector from tangent space to model space
+        // because vidwDir and norm are in tangent space
+        vec3 R = inversedTBN * reflect(-viewDir, norm);
+        vec3 envReflection = texture(skybox, R).rgb;
+        result *= envReflection * 10;
     }
 
     FragColor = vec4(result, 1.0);

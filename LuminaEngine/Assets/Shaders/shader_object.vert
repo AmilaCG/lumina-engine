@@ -13,6 +13,7 @@ out vec3 TangentSpotLightPos[NR_LIGHTS];
 out vec3 TangentSpotLightDir[NR_LIGHTS];
 out vec3 TangentViewPos;
 out vec3 TangentFragPos;
+out mat3 inversedTBN;
 
 uniform mat4 model;
 uniform mat4 view;
@@ -33,6 +34,7 @@ void main()
     T = normalize(T - dot(T, N) * N);
     vec3 B = cross(N, T);
     mat3 TBN = transpose(mat3(T, B, N));
+    inversedTBN = inverse(TBN);
     TangentViewPos = TBN * viewPos;
     TangentFragPos = TBN * vec3(model * vec4(aPos, 1.0));
     TangentDirLightDirection = TBN * dirLightDirection;
