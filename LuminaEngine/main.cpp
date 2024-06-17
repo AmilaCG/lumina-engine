@@ -85,12 +85,12 @@ unsigned int quadVBO;
 
 unsigned int texCubemap;
 std::string cubemapFaces[] = {
-    "Assets/Textures/Skybox/right.png",
-    "Assets/Textures/Skybox/left.png",
-    "Assets/Textures/Skybox/top.png",
-    "Assets/Textures/Skybox/bottom.png",
-    "Assets/Textures/Skybox/front.png",
-    "Assets/Textures/Skybox/back.png",
+    "Assets/Textures/Skybox/right.jpg",
+    "Assets/Textures/Skybox/left.jpg",
+    "Assets/Textures/Skybox/top.jpg",
+    "Assets/Textures/Skybox/bottom.jpg",
+    "Assets/Textures/Skybox/front.jpg",
+    "Assets/Textures/Skybox/back.jpg",
 };
 unsigned int skyboxVAO;
 unsigned int skyboxVBO;
