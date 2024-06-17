@@ -1,3 +1,4 @@
+#include <array>
 #include <iostream>
 #include <sstream>
 #include <glad/glad.h>
@@ -5,11 +6,10 @@
 #include <imgui.h>
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_opengl3.h>
-#define STB_IMAGE_IMPLEMENTATION
-#include <stb_image.h>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
+#include "TextureUtils.h"
 #include "Model.h"
 #include "Shader.h"
 #include "LightPreview.h"
@@ -254,29 +254,7 @@ void sceneSetup(GLFWwindow* window)
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
     // Load cubemap
-    glGenTextures(1, &texCubemap);
-    glBindTexture(GL_TEXTURE_CUBE_MAP, texCubemap);
-    int width, height, nrChannels;
-    for (int i = 0; i < std::size(cubemapFaces); i++)
-    {
-        unsigned char* data = stbi_load(cubemapFaces[i].c_str(), &width, &height, &nrChannels, 0);
-        if (data)
-        {
-           glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i,
-               0, GL_SRGB_ALPHA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
-        }
-        else
-        {
-            std::cout << "Cubemap tex failed to load at path: " << cubemapFaces[i] << std::endl;
-        }
-        stbi_image_free(data);
-    }
-    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
-    glBindTexture(GL_TEXTURE_CUBE_MAP, 0);
+    texCubemap = TextureUtils::loadCubemapTexture(std::to_array(cubemapFaces), true);
 
     // Skybox VAO
     glGenVertexArrays(1, &skyboxVAO);
