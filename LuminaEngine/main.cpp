@@ -273,7 +273,7 @@ void setLightParameters()
     glm::vec3 specular(1.0f);
 
     // Directional light
-    backpackShader->setInt("dirLight.isActive", 1);
+    backpackShader->setBool("dirLight.isActive", true);
     backpackShader->setVec3("dirLightDirection", glm::vec3(-0.2f, -1.0f, -0.3f));
     backpackShader->setVec3("dirLight.ambient", ambient);
     backpackShader->setVec3("dirLight.diffuse", diffuse);
@@ -291,7 +291,7 @@ void setLightParameters()
         std::ostringstream ossLightParams;
         ossLightParams << "pointLights[" << i << "]";
         std::string pointLight = ossLightParams.str();
-        backpackShader->setInt(pointLight + ".isActive", 1);
+        backpackShader->setBool(pointLight + ".isActive", true);
         backpackShader->setVec3(pointLight + ".ambient", ambient * pointLightColors[i]);
         backpackShader->setVec3(pointLight + ".diffuse", diffuse * pointLightColors[i]);
         backpackShader->setVec3(pointLight + ".specular", specular);
@@ -303,7 +303,7 @@ void setLightParameters()
     }
 
     // Spot light
-    backpackShader->setInt("spotLights[0].isActive", 0);
+    backpackShader->setBool("spotLights[0].isActive", false);
     backpackShader->setVec3("spotLightPos[0]", cameraPosition);
     backpackShader->setVec3("spotLightDir[0]", cameraFront);
     backpackShader->setFloat("spotLights[0].cutOff", glm::cos(glm::radians(12.5f)));
@@ -358,6 +358,7 @@ void renderLoop(GLFWwindow* window)
     glBindTexture(GL_TEXTURE_CUBE_MAP, texCubemap);
     backpackShader->setInt("skybox", skyboxTexUnit);
     backpackShader->setBool("shouldEnableReflections", true);
+    backpackShader->setBool("shouldEnableRefractions", true);
 
     indiceCount += guitarBackpackModel->Draw(*backpackShader);
 

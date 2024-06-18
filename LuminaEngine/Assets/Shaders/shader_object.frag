@@ -64,6 +64,7 @@ uniform SpotLight spotLights[NR_LIGHTS];
 uniform Material material;
 uniform samplerCube skybox;
 uniform bool shouldEnableReflections;
+uniform bool shouldEnableRefractions;
 
 vec3 calcDirLight(DirLight light, vec3 normal, vec3 viewDir);
 vec3 calcPointLight(PointLight light, vec3 normal, vec3 fragPos, vec3 viewDir);
@@ -186,11 +187,23 @@ void main()
     if (shouldEnableReflections)
     {
         // Calculating environment reflections
+        vec3 I = -viewDir;
+        vec3 R = reflect(I, norm);
         // Note that we are converting the reflection vector from tangent space to model space
         // because vidwDir and norm are in tangent space
-        vec3 R = inversedTBN * reflect(-viewDir, norm);
-        vec3 envReflection = texture(skybox, R).rgb;
+        vec3 envReflection = texture(skybox, inversedTBN * R).rgb;
         result *= envReflection * 10;
+    }
+
+    if (shouldEnableRefractions)
+    {
+        const float airRefractiveIndex = 1.00;
+        const float glassRefractiveIndex = 1.52;
+        float ratio = airRefractiveIndex / glassRefractiveIndex;
+        vec3 I = -viewDir;
+        vec3 R = refract(I, norm, ratio);
+        vec3 envRefraction = texture(skybox, inversedTBN * R).rgb;
+        result = envRefraction;
     }
 
     FragColor = vec4(result, 1.0);
