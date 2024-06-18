@@ -27,6 +27,7 @@ public:
          const std::vector<unsigned int>& indices,
          const std::vector<Texture>& textures);
     unsigned int Draw(Shader& shader);
+    void deinit();
 
 public:
     // Mesh data

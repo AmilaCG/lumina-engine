@@ -16,6 +16,19 @@ Model::Model(const std::string& path)
     loadModel(path);
 }
 
+Model::~Model()
+{
+    for (auto& [id, type, name] : texturesLoaded)
+    {
+        glDeleteTextures(1, &id);
+    }
+
+    for (auto& mesh : meshes)
+    {
+        mesh.deinit();
+    }
+}
+
 unsigned int Model::Draw(Shader& shader)
 {
     unsigned int indiceCount = 0;
@@ -46,7 +59,7 @@ void Model::processNode(aiNode* node, const aiScene* scene)
     for (unsigned int i = 0; i < node->mNumMeshes; i++)
     {
         aiMesh* mesh = scene->mMeshes[node->mMeshes[i]];
-        this->meshes.push_back(processMesh(mesh, scene));
+        processMesh(mesh, scene);
     }
 
     for (unsigned int i = 0; i < node->mNumChildren; i++)
@@ -55,7 +68,7 @@ void Model::processNode(aiNode* node, const aiScene* scene)
     }
 }
 
-Mesh Model::processMesh(aiMesh* mesh, const aiScene* scene)
+void Model::processMesh(aiMesh* mesh, const aiScene* scene)
 {
     std::vector<Vertex> verticies;
     std::vector<unsigned int> indices;
@@ -135,7 +148,7 @@ Mesh Model::processMesh(aiMesh* mesh, const aiScene* scene)
         textures.insert(textures.end(), normalMaps.begin(), normalMaps.end());
     }
 
-    return Mesh(verticies, indices, textures);
+    meshes.emplace_back(verticies, indices, textures);
 }
 
 std::vector<Texture> Model::loadMaterialTextures(aiMaterial* mat, aiTextureType type, const std::string& typeName)

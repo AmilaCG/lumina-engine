@@ -590,6 +590,7 @@ glm::vec3 getCameraDirection(const double yaw, const double pitch)
 
 void deinit()
 {
+    glDeleteTextures(1, &texCubemap);
     delete(guitarBackpackModel);
     delete(backpackShader);
     delete(lightPreview);

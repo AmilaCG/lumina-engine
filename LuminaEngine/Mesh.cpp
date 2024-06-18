@@ -85,3 +85,13 @@ unsigned int Mesh::Draw(Shader& shader)
 
     return indices.size();
 }
+
+void Mesh::deinit()
+{
+    // Doing cleanup in a separate function instead of the destructor because these meshes are stored
+    // in a std::vector at Model class. Each time this vector grows, it deletes and recreate these
+    // meshes so the OpenGL objects loses their references.
+    glDeleteBuffers(1, &vbo);
+    glDeleteBuffers(1, &ebo);
+    glDeleteVertexArrays(1, &vao);
+}
