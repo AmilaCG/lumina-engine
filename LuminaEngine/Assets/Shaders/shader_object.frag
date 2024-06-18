@@ -192,7 +192,7 @@ void main()
         // Note that we are converting the reflection vector from tangent space to model space
         // because vidwDir and norm are in tangent space
         vec3 envReflection = texture(skybox, inversedTBN * R).rgb;
-        result *= envReflection * 10;
+        result = envReflection;
     }
 
     if (shouldEnableRefractions)

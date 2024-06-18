@@ -47,6 +47,8 @@ const char* SKYBOX_F_SHADER_PATH = "Assets/Shaders/shader_skybox.frag";
 static float pos[3];
 static float rot[3];
 static float scale[] = {1.0f, 1.0f, 1.0f};
+bool shouldEnableReflections;
+bool shouldEnableRefractions;
 
 const glm::vec3 world_front(0.0f, 0.0f, -1.0f);
 const glm::vec3 world_up(0.0f, 1.0f, 0.0f);
@@ -357,8 +359,8 @@ void renderLoop(GLFWwindow* window)
     glActiveTexture(GL_TEXTURE0 + skyboxTexUnit);
     glBindTexture(GL_TEXTURE_CUBE_MAP, texCubemap);
     backpackShader->setInt("skybox", skyboxTexUnit);
-    backpackShader->setBool("shouldEnableReflections", true);
-    backpackShader->setBool("shouldEnableRefractions", true);
+    backpackShader->setBool("shouldEnableReflections", shouldEnableReflections);
+    backpackShader->setBool("shouldEnableRefractions", shouldEnableRefractions);
 
     indiceCount += guitarBackpackModel->Draw(*backpackShader);
 
@@ -423,7 +425,7 @@ void displayUI(const unsigned int& triangleCount)
     const ImGuiViewport* viewport = ImGui::GetMainViewport();
     constexpr float offset = 10;
 
-    ImGuiWindowFlags transform_window_flags = 0;
+    static ImGuiWindowFlags transform_window_flags = 0;
     transform_window_flags |= ImGuiWindowFlags_NoMove;
     transform_window_flags |= ImGuiWindowFlags_NoCollapse;
     transform_window_flags |= ImGuiWindowFlags_NoResize;
@@ -439,7 +441,62 @@ void displayUI(const unsigned int& triangleCount)
     ImGui::DragFloat3("Scale", scale, 0.001f);
     ImGui::End();
 
-    ImGuiWindowFlags stats_window_flags = 0;
+    static ImGuiWindowFlags reflection_config_window_flags = 0;
+    reflection_config_window_flags |= ImGuiWindowFlags_NoMove;
+    reflection_config_window_flags |= ImGuiWindowFlags_NoCollapse;
+    reflection_config_window_flags |= ImGuiWindowFlags_NoTitleBar;
+    reflection_config_window_flags |= ImGuiWindowFlags_AlwaysAutoResize;
+
+    // TODO: Not sure how to get the previous window height so I hardcoded a value to offset on Y axis
+    ImGui::SetNextWindowPos(ImVec2(viewport->WorkPos.x + offset, viewport->WorkPos.y + 120 + offset),
+        ImGuiCond_Always);
+    ImGui::Begin("Reflection", nullptr, reflection_config_window_flags);
+    ImGui::SeparatorText("Env Reflections / Refractions");
+
+    const char* items[] = { "OFF", "Reflections ON", "Refractions ON" };
+    static int item_current_idx = 0; // Here we store our selection data as an index.
+    static int item_prev_idx = 0;
+
+    const char* combo_preview_value = items[item_current_idx];
+    if (ImGui::BeginCombo("ON/OFF", combo_preview_value))
+    {
+        for (int n = 0; n < IM_ARRAYSIZE(items); n++)
+        {
+            const bool is_selected = (item_current_idx == n);
+            if (ImGui::Selectable(items[n], is_selected))
+                item_current_idx = n;
+
+            // Set the initial focus when opening the combo (scrolling + keyboard navigation focus)
+            if (is_selected)
+                ImGui::SetItemDefaultFocus();
+        }
+        ImGui::EndCombo();
+    }
+    if (item_current_idx != item_prev_idx)
+    {
+        switch (item_current_idx)
+        {
+            case 0:
+                std::cout << "OFF" << std::endl;
+                shouldEnableReflections = false;
+                shouldEnableRefractions = false;
+                break;
+            case 1:
+                std::cout << "Reflections ON" << std::endl;
+                shouldEnableReflections = true;
+                shouldEnableRefractions = false;
+                break;
+            case 2:
+                std::cout << "Refractions ON" << std::endl;
+                shouldEnableReflections = false;
+                shouldEnableRefractions = true;
+                break;
+        }
+        item_prev_idx = item_current_idx;
+    }
+    ImGui::End();
+
+    static ImGuiWindowFlags stats_window_flags = 0;
     stats_window_flags |= ImGuiWindowFlags_NoMove;
     stats_window_flags |= ImGuiWindowFlags_NoCollapse;
     stats_window_flags |= ImGuiWindowFlags_NoTitleBar;
