@@ -19,7 +19,7 @@ Developing an OpenGL-based rendering engine while learning basic concepts from [
 | Anti-aliasing | To do |
 | Shadows | To do |
 | Parallax mapping | To do |
-| HDR (High Dynamic Range) | To do |
+| HDR (High Dynamic Range) | Done |
 | Bloom | To do |
 | SSAO (Screen-Space Ambient Occlusion) | To do |
 | PBR lighting | To do |
