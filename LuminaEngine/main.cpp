@@ -49,6 +49,7 @@ static float rot[3];
 static float scale[] = {1.0f, 1.0f, 1.0f};
 bool shouldEnableReflections;
 bool shouldEnableRefractions;
+static bool show_skybox;
 
 const glm::vec3 world_front(0.0f, 0.0f, -1.0f);
 const glm::vec3 world_up(0.0f, 1.0f, 0.0f);
@@ -378,21 +379,24 @@ void renderLoop(GLFWwindow* window)
         lightPreview->Draw(*lightShader, pointLightColors[i++]);
     }
 
-    // Draw the skybox
-    // Depth test passes when values are equal to depth buffer's content. Even though ideally this
-    // should be GL_EQUAL, some artifacts will occur on the skybox when panning because sometimes
-    // incoming pixel depth value < depth value in depth buffer, so we use GL_LEQUAL to avoid them
-    glDepthFunc(GL_LEQUAL);
-    skyboxShader->use();
-    // Remove translation section of the view transform matrix by taking only the upper-left 3x3 matrix,
-    // so the skybox will rotate but not scale or move.
-    const auto viewSkybox = glm::mat4(glm::mat3(view));
-    skyboxShader->setMat4("view", viewSkybox);
-    skyboxShader->setMat4("projection", projection);
-    skyboxShader->setInt("skybox", skyboxTexUnit);
-    glBindVertexArray(skyboxVAO);
-    glDrawArrays(GL_TRIANGLES, 0, 36);
-    glDepthFunc(GL_LESS); // Set depth function back to default
+    if (show_skybox)
+    {
+        // Draw the skybox
+        // Depth test passes when values are equal to depth buffer's content. Even though ideally this
+        // should be GL_EQUAL, some artifacts will occur on the skybox when panning because sometimes
+        // incoming pixel depth value < depth value in depth buffer, so we use GL_LEQUAL to avoid them
+        glDepthFunc(GL_LEQUAL);
+        skyboxShader->use();
+        // Remove translation section of the view transform matrix by taking only the upper-left 3x3 matrix,
+        // so the skybox will rotate but not scale or move.
+        const auto viewSkybox = glm::mat4(glm::mat3(view));
+        skyboxShader->setMat4("view", viewSkybox);
+        skyboxShader->setMat4("projection", projection);
+        skyboxShader->setInt("skybox", skyboxTexUnit);
+        glBindVertexArray(skyboxVAO);
+        glDrawArrays(GL_TRIANGLES, 0, 36);
+        glDepthFunc(GL_LESS); // Set depth function back to default
+    }
 
     glBindFramebuffer(GL_FRAMEBUFFER, 0); // Back to default framebuffer
     glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
@@ -426,40 +430,34 @@ void displayUI(const unsigned int& triangleCount)
     const ImGuiViewport* viewport = ImGui::GetMainViewport();
     constexpr float offset = 10;
 
-    static ImGuiWindowFlags transform_window_flags = 0;
-    transform_window_flags |= ImGuiWindowFlags_NoMove;
-    transform_window_flags |= ImGuiWindowFlags_NoCollapse;
-    transform_window_flags |= ImGuiWindowFlags_NoResize;
-    transform_window_flags |= ImGuiWindowFlags_NoTitleBar;
-
+    // Start Settings window
     ImGui::SetNextWindowPos(ImVec2(viewport->WorkPos.x + offset, viewport->WorkPos.y + offset),
-        ImGuiCond_Always);
-    ImGui::SetNextWindowSize(ImVec2(300, 110), ImGuiCond_Always);
-    ImGui::Begin("Transform", nullptr, transform_window_flags);
+        ImGuiCond_FirstUseEver);
+    ImGui::Begin("Settings");
+
+    // Start Transform section
     ImGui::SeparatorText("Transform");
     ImGui::DragFloat3("Position", pos, 0.001f);
     ImGui::DragFloat3("Rotation", rot, 0.01f);
     ImGui::DragFloat3("Scale", scale, 0.001f);
-    ImGui::End();
+    // End Transform section
 
-    static ImGuiWindowFlags reflection_config_window_flags = 0;
-    reflection_config_window_flags |= ImGuiWindowFlags_NoMove;
-    reflection_config_window_flags |= ImGuiWindowFlags_NoCollapse;
-    reflection_config_window_flags |= ImGuiWindowFlags_NoTitleBar;
-    reflection_config_window_flags |= ImGuiWindowFlags_AlwaysAutoResize;
+    ImGui::Spacing();
 
-    // TODO: Not sure how to get the previous window height so I hardcoded a value to offset on Y axis
-    ImGui::SetNextWindowPos(ImVec2(viewport->WorkPos.x + offset, viewport->WorkPos.y + 120 + offset),
-        ImGuiCond_Always);
-    ImGui::Begin("Reflection", nullptr, reflection_config_window_flags);
-    ImGui::SeparatorText("Env Reflections / Refractions");
+    ImGui::SeparatorText("Skybox");
+    ImGui::Checkbox("Show skybox", &show_skybox);
 
+    ImGui::Spacing();
+
+    // Start Env Reflections section
     const char* items[] = { "OFF", "Reflections ON", "Refractions ON" };
     static int item_current_idx = 0; // Here we store our selection data as an index.
     static int item_prev_idx = 0;
 
+    static ImGuiComboFlags env_ref_combo_flags = 0;
+    env_ref_combo_flags |= ImGuiComboFlags_WidthFitPreview;
     const char* combo_preview_value = items[item_current_idx];
-    if (ImGui::BeginCombo("ON/OFF", combo_preview_value))
+    if (ImGui::BeginCombo("Reflections/Refractions", combo_preview_value, env_ref_combo_flags))
     {
         for (int n = 0; n < IM_ARRAYSIZE(items); n++)
         {
@@ -478,25 +476,26 @@ void displayUI(const unsigned int& triangleCount)
         switch (item_current_idx)
         {
             case 0:
-                std::cout << "OFF" << std::endl;
                 shouldEnableReflections = false;
                 shouldEnableRefractions = false;
                 break;
             case 1:
-                std::cout << "Reflections ON" << std::endl;
                 shouldEnableReflections = true;
                 shouldEnableRefractions = false;
                 break;
             case 2:
-                std::cout << "Refractions ON" << std::endl;
                 shouldEnableReflections = false;
                 shouldEnableRefractions = true;
                 break;
         }
         item_prev_idx = item_current_idx;
     }
-    ImGui::End();
+    // End Env Reflections section
 
+    ImGui::End();
+    // End Settings window
+
+    // Start stats window
     static ImGuiWindowFlags stats_window_flags = 0;
     stats_window_flags |= ImGuiWindowFlags_NoMove;
     stats_window_flags |= ImGuiWindowFlags_NoCollapse;
@@ -511,6 +510,7 @@ void displayUI(const unsigned int& triangleCount)
     ImGui::Text("Avg: %.3f ms", 1000.0f / io.Framerate);
     ImGui::Text("Triangles: %d", triangleCount);
     ImGui::End();
+    // End stats window
 }
 
 void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
