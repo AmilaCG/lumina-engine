@@ -3,7 +3,7 @@ Developing an OpenGL-based rendering engine while learning basic concepts from [
 
 ## Current Progress
 ![Demo](Docs/demo.png)
-*Snapshot of the current progress. 3D model is from https://skfb.ly/6QZxW*.
+*Snapshot of the current progress. [3D model](https://skfb.ly/6QZxW) by Berk Gedik is licensed under [Creative Commons Attribution](http://creativecommons.org/licenses/by/4.0/)*.
 
 <br>
 
