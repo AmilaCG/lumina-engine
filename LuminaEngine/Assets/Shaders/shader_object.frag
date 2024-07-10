@@ -8,7 +8,7 @@ in vec3 TangentDirLightDirection;
 in vec3 TangentPointLightPos[NR_LIGHTS];
 in vec3 TangentSpotLightPos[NR_LIGHTS];
 in vec3 TangentSpotLightDir[NR_LIGHTS];
-in vec3 TangentViewPos;
+in vec3 TangentCamPos;
 in vec3 TangentFragPos;
 in mat3 inversedTBN;
 
@@ -150,7 +150,7 @@ void main()
     vec3 norm = normalize(normal * 2.0 - 1.0);
 
     // Light reflection from fragment to camera/eye
-    vec3 viewDir = normalize(TangentViewPos - TangentFragPos);
+    vec3 viewDir = normalize(TangentCamPos - TangentFragPos);
 
     vec3 result;
 

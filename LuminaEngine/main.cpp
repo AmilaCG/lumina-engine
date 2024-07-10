@@ -346,7 +346,7 @@ void renderLoop(GLFWwindow* window)
     backpackShader->setFloat("material.shininess", 192.0f);
     backpackShader->setMat4("view", view);
     backpackShader->setMat4("projection", projection);
-    backpackShader->setVec3("viewPos", cameraPosition);
+    backpackShader->setVec3("camPos", cameraPosition);
 
     glm::mat4 model = glm::mat4(1.0f);
     model = glm::rotate(model, glm::radians(rot[0]), glm::vec3(1.0, 0.0, 0.0));
