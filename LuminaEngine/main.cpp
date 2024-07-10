@@ -101,8 +101,8 @@ unsigned int skyboxVBO;
 glm::vec3 pointLightPositions[] = {
         glm::vec3(1.2f,  0.2f,  2.0f),
         glm::vec3(-1.2f,  0.5f,  2.0f),
-        glm::vec3(-4.0f, 2.0f, -12.0f),
-        glm::vec3(0.0f,  0.0f, -3.0f)
+        glm::vec3(-1.0f, 0.3f, -4.0f),
+        glm::vec3(1.0f,  0.0f, -3.7f)
 };
 
 glm::vec3 pointLightColors[] = {
@@ -276,7 +276,7 @@ void setLightParameters()
     glm::vec3 specular(1.0f);
 
     // Directional light
-    backpackShader->setBool("dirLight.isActive", true);
+    backpackShader->setBool("dirLight.isActive", false);
     backpackShader->setVec3("dirLightDirection", glm::vec3(-0.2f, -1.0f, -0.3f));
     backpackShader->setVec3("dirLight.ambient", ambient);
     backpackShader->setVec3("dirLight.diffuse", diffuse);
