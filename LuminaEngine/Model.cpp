@@ -192,10 +192,11 @@ std::vector<Texture> Model::loadMaterialTextures(aiMaterial* mat, aiTextureType 
         }
         if (skip) { continue; }
 
-        // Diffuse textures are almost always in the sRGB space but textures such as specular
-        // and normal are usually in the linear space. Therefore, only convert diffuse textures
-        // into linear space when loading.
-        bool shouldCorrectGamma = type == aiTextureType_DIFFUSE;
+        // Diffuse and AO textures are almost always in the sRGB space. Therefore, only convert
+        // these textures into linear space when loading.
+        bool shouldCorrectGamma =
+            type == aiTextureType_DIFFUSE ||
+            type == aiTextureType_AMBIENT;
         Texture texture;
         std::string path = this->directory + "/" + str.C_Str();
         texture.id = TextureUtils::loadTexture(path, shouldCorrectGamma);
