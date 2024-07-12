@@ -25,7 +25,8 @@ class Mesh
 public:
     Mesh(const std::vector<Vertex>& verticies,
          const std::vector<unsigned int>& indices,
-         const std::vector<Texture>& textures);
+         const std::vector<Texture>& textures,
+         bool isPbr);
     unsigned int Draw(Shader& shader);
     void deinit();
 
@@ -42,4 +43,5 @@ private:
     unsigned int vao;
     unsigned int vbo;
     unsigned int ebo;
+    bool isPbr;
 };

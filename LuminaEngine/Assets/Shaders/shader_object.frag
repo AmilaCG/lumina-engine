@@ -2,6 +2,8 @@
 
 #define NR_LIGHTS 5
 
+const float PI = 3.14159265359;
+
 out vec4 FragColor;
 in vec2 TexCoords;
 in vec3 TangentDirLightDirection;
@@ -58,19 +60,37 @@ struct Material
     float     shininess;
 };
 
+struct MaterialPbr
+{
+    sampler2D texture_albedo1;
+    sampler2D texture_metallic1;
+    sampler2D texture_roughness1;
+    sampler2D texture_normal1;
+    sampler2D texture_ao1;
+};
+
+uniform bool isPbr;
 uniform DirLight dirLight;
 uniform PointLight pointLights[NR_LIGHTS];
 uniform SpotLight spotLights[NR_LIGHTS];
 uniform Material material;
+uniform MaterialPbr materialPbr;
 uniform samplerCube skybox;
 uniform bool shouldEnableReflections;
 uniform bool shouldEnableRefractions;
 
+vec3 Lo = vec3(0.0);
+
 vec3 calcDirLight(DirLight light, vec3 normal, vec3 viewDir);
-vec3 calcPointLight(PointLight light, vec3 normal, vec3 fragPos, vec3 viewDir);
+vec3 calcPointLight(PointLight light, vec3 lightPos, vec3 normal, vec3 fragPos, vec3 viewDir);
+vec3 calcPbrPointLight(PointLight light, vec3 lightPos, vec3 normal, vec3 fragPos, vec3 viewDir);
 vec3 calcSpotLight(SpotLight light, vec3 normal, vec3 fragPos, vec3 viewDir);
 vec3 calcDiffuse(vec3 color, vec3 normal, vec3 lightDir);
 vec3 calcSpecular(vec3 color, vec3 normal, vec3 lightDir, vec3 viewDir);
+vec3 fresnelSchlick(float cosTheta, vec3 F0);
+float DistributionGGX(vec3 N, vec3 H, float roughness);
+float GeometrySchlickGGX(float NdotV, float roughness);
+float GeometrySmith(vec3 N, vec3 V, vec3 L, float roughness);
 
 vec3 calcDirLight(DirLight light, vec3 normal, vec3 viewDir)
 {
@@ -101,6 +121,89 @@ vec3 calcPointLight(PointLight light, vec3 lightPos, vec3 normal, vec3 fragPos, 
     specular *= attenuation;
 
     return (ambient + diffuse + specular);
+}
+
+vec3 calcPbrPointLight(PointLight light, vec3 lightPos, vec3 normal, vec3 fragPos, vec3 viewDir)
+{
+    vec3 albedo = texture(materialPbr.texture_albedo1, TexCoords).rgb;
+    float metallic = texture(materialPbr.texture_metallic1, TexCoords).r;
+    float roughness = texture(materialPbr.texture_roughness1, TexCoords).r;
+    float ao = texture(materialPbr.texture_ao1, TexCoords).r;
+
+    vec3 N = normal;
+    vec3 V = viewDir;
+    vec3 L = normalize(lightPos - fragPos); // Light direction
+    vec3 H = normalize(V + L); // Halfway direction
+
+    float distance = length(lightPos - fragPos);
+    float attenuation = 1.0 / (distance * distance);
+    vec3 radiance = light.diffuse * attenuation;
+
+    vec3 F0 = vec3(0.04); // Non-metallic / dielectric
+    F0 = mix(F0, albedo, metallic);
+    vec3 F  = fresnelSchlick(max(dot(H, V), 0.0), F0);
+
+    float NDF = DistributionGGX(N, H, roughness);
+    float G = GeometrySmith(N, V, L, roughness);
+
+    // Calculating Cook-Torrance BRDF
+    vec3 numerator = NDF * G * F;
+    float denominator = 4.0 * max(dot(N, V), 0.0) * max(dot(N, L), 0.0) + 0.0001;
+    vec3 specular = numerator / denominator;
+
+    vec3 kS = F; // Reflected light energy
+    vec3 kD = vec3(1.0) - kS; // Refracted light energy
+
+    kD *= 1.0 - metallic; // Since metals doesn't refract, nullifying kD with metallic value
+
+    float NdotL = max(dot(N, L), 0.0);
+    Lo += (kD * albedo / PI + specular) * radiance * NdotL;
+
+    vec3 ambient = vec3(0.03) * albedo * ao;
+    vec3 color = ambient + Lo;
+
+    return color;
+}
+
+// Trowbridge-Reitz GGX
+float DistributionGGX(vec3 N, vec3 H, float roughness)
+{
+    float a = roughness * roughness; // alfa
+    float a2 = a * a;
+    float NdotH = max(dot(N, H), 0.0);
+    float NdotH2 = NdotH * NdotH;
+
+    float num = a2;
+    float denom = (NdotH2 * (a2 - 1.0) + 1.0);
+    denom = PI * denom * denom;
+
+    return num / denom;
+}
+
+float GeometrySchlickGGX(float NdotV, float roughness)
+{
+    float r = (roughness + 1.0);
+    float k = (r * r) / 8.0;
+
+    float num = NdotV;
+    float denom = NdotV * (1.0 - k) + k;
+
+    return num / denom;
+}
+
+float GeometrySmith(vec3 N, vec3 V, vec3 L, float roughness)
+{
+    float NdotV = max(dot(N, V), 0.0);
+    float NdotL = max(dot(N, L), 0.0);
+    float ggx2 = GeometrySchlickGGX(NdotV, roughness);
+    float ggx1 = GeometrySchlickGGX(NdotL, roughness);
+
+    return ggx1 * ggx2;
+}
+
+vec3 fresnelSchlick(float cosTheta, vec3 F0)
+{
+    return F0 + (1.0 - F0) * pow(clamp(1.0 - cosTheta, 0.0, 1.0), 5.0);
 }
 
 vec3 calcSpotLight(SpotLight light, vec3 lightPos, vec3 spotDir, vec3 normal, vec3 fragPos, vec3 viewDir)
@@ -146,8 +249,16 @@ vec3 calcSpecular(vec3 color, vec3 normal, vec3 lightDir, vec3 viewDir)
 
 void main()
 {
-    vec3 normal = texture(material.texture_normal1, TexCoords).rgb;
-    vec3 norm = normalize(normal * 2.0 - 1.0);
+    vec3 normal;
+    if (isPbr)
+    {
+        normal = texture(materialPbr.texture_normal1, TexCoords).rgb;
+    }
+    else
+    {
+        normal = texture(material.texture_normal1, TexCoords).rgb;
+    }
+    normal = normalize(normal * 2.0 - 1.0);
 
     // Light reflection from fragment to camera/eye
     vec3 viewDir = normalize(TangentCamPos - TangentFragPos);
@@ -157,7 +268,7 @@ void main()
     // Phase 1: Directional lighting
     if (dirLight.isActive)
     {
-        result += calcDirLight(dirLight, norm, viewDir);
+        result += calcDirLight(dirLight, normal, viewDir);
     }
 
     for (int i = 0; i < NR_LIGHTS; i++)
@@ -165,11 +276,22 @@ void main()
         // Phase 2: Point lights
         if (pointLights[i].isActive)
         {
-            result += calcPointLight(pointLights[i],
-                                     TangentPointLightPos[i],
-                                     norm,
-                                     TangentFragPos,
-                                     viewDir);
+            if (isPbr)
+            {
+                result += calcPbrPointLight(pointLights[i],
+                                            TangentPointLightPos[i],
+                                            normal,
+                                            TangentFragPos,
+                                            viewDir);
+            }
+            else
+            {
+                result += calcPointLight(pointLights[i],
+                                         TangentPointLightPos[i],
+                                         normal,
+                                         TangentFragPos,
+                                         viewDir);
+            }
         }
 
         // Phase 3: Spot light
@@ -178,7 +300,7 @@ void main()
             result += calcSpotLight(spotLights[i],
                                   TangentSpotLightPos[i],
                                   TangentSpotLightDir[i],
-                                  norm,
+                                  normal,
                                   TangentFragPos,
                                   viewDir);
         }
@@ -188,7 +310,7 @@ void main()
     {
         // Calculating environment reflections
         vec3 I = -viewDir;
-        vec3 R = reflect(I, norm);
+        vec3 R = reflect(I, normal);
         // Note that we are converting the reflection vector from tangent space to model space
         // because vidwDir and norm are in tangent space
         vec3 envReflection = texture(skybox, inversedTBN * R).rgb;
@@ -201,7 +323,7 @@ void main()
         const float glassRefractiveIndex = 1.52;
         float ratio = airRefractiveIndex / glassRefractiveIndex;
         vec3 I = -viewDir;
-        vec3 R = refract(I, norm, ratio);
+        vec3 R = refract(I, normal, ratio);
         vec3 envRefraction = texture(skybox, inversedTBN * R).rgb;
         result = envRefraction;
     }

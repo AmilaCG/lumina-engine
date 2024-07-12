@@ -9,7 +9,7 @@
 class Model
 {
 public:
-    explicit Model(const std::string& path);
+    Model(const std::string& path, bool isPbr);
     ~Model();
     unsigned int Draw(Shader& shader);
 
@@ -24,4 +24,5 @@ private:
     std::vector<Mesh> meshes;
     std::string directory;
     std::vector<Texture> texturesLoaded;
+    bool isPbr;
 };

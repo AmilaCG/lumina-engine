@@ -204,7 +204,8 @@ void sceneSetup(GLFWwindow* window)
 {
     glViewport(0, 0, SCR_WIDTH, SCR_HEIGHT);
 
-    guitarBackpackModel = new Model(BACKPACK_MODEL_PATH);
+    constexpr bool isPbr = true;
+    guitarBackpackModel = new Model(BACKPACK_MODEL_PATH, isPbr);
     backpackShader = new Shader(OBJ_V_SHADER_PATH, OBJ_F_SHADER_PATH);
     lightPreview = new LightPreview();
     lightShader = new Shader(LIGHT_V_SHADER_PATH, LIGHT_F_SHADER_PATH);
@@ -321,7 +322,8 @@ void setLightParameters()
 
 void renderLoop(GLFWwindow* window)
 {
-    constexpr unsigned int skyboxTexUnit = 3; // Reserving unit 0, 1 and 2 for diff, spec and normal maps
+    // Reserving unit 0 to 4 for PBR/phong material texture maps
+    constexpr unsigned int skyboxTexUnit = 5;
     unsigned int indiceCount = 0;
     processInput(window);
     glfwPollEvents();

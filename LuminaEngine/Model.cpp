@@ -5,7 +5,7 @@
 #include <assimp/postprocess.h>
 #include "TextureUtils.h"
 
-Model::Model(const std::string& path)
+Model::Model(const std::string& path, const bool isPbr) : isPbr(isPbr)
 {
     // Tell stb_image.h to flip loaded texture's on the y-axis (before loading model).
     // TODO NOTE: This was the recommended way in the tutorial but I commented it because
@@ -135,20 +135,42 @@ void Model::processMesh(aiMesh* mesh, const aiScene* scene)
     if (mesh->mMaterialIndex >= 0)
     {
         aiMaterial* material = scene->mMaterials[mesh->mMaterialIndex];
-        std::vector<Texture> diffuseMaps =
-            loadMaterialTextures(material, aiTextureType_DIFFUSE, "texture_diffuse");
-        textures.insert(textures.end(), diffuseMaps.begin(), diffuseMaps.end());
 
-        std::vector<Texture> specularMaps =
-            loadMaterialTextures(material, aiTextureType_SPECULAR, "texture_specular");
-        textures.insert(textures.end(), specularMaps.begin(), specularMaps.end());
+        if (isPbr)
+        {
+            std::vector<Texture> albedoMaps =
+                loadMaterialTextures(material, aiTextureType_DIFFUSE, "texture_albedo");
+            textures.insert(textures.end(), albedoMaps.begin(), albedoMaps.end());
+
+            std::vector<Texture> metallicMaps =
+                loadMaterialTextures(material, aiTextureType_SPECULAR, "texture_metallic");
+            textures.insert(textures.end(), metallicMaps.begin(), metallicMaps.end());
+
+            std::vector<Texture> roughnessMaps =
+                loadMaterialTextures(material, aiTextureType_SHININESS, "texture_roughness");
+            textures.insert(textures.end(), roughnessMaps.begin(), roughnessMaps.end());
+
+            std::vector<Texture> aoMaps =
+                loadMaterialTextures(material, aiTextureType_AMBIENT, "texture_ao");
+            textures.insert(textures.end(), aoMaps.begin(), aoMaps.end());
+        }
+        else
+        {
+            std::vector<Texture> diffuseMaps =
+                loadMaterialTextures(material, aiTextureType_DIFFUSE, "texture_diffuse");
+            textures.insert(textures.end(), diffuseMaps.begin(), diffuseMaps.end());
+
+            std::vector<Texture> specularMaps =
+                loadMaterialTextures(material, aiTextureType_SPECULAR, "texture_specular");
+            textures.insert(textures.end(), specularMaps.begin(), specularMaps.end());
+        }
 
         std::vector<Texture> normalMaps =
-                loadMaterialTextures(material, aiTextureType_HEIGHT, "texture_normal");
+                    loadMaterialTextures(material, aiTextureType_NORMALS, "texture_normal");
         textures.insert(textures.end(), normalMaps.begin(), normalMaps.end());
     }
 
-    meshes.emplace_back(verticies, indices, textures);
+    meshes.emplace_back(verticies, indices, textures, isPbr);
 }
 
 std::vector<Texture> Model::loadMaterialTextures(aiMaterial* mat, aiTextureType type, const std::string& typeName)

@@ -4,8 +4,9 @@
 
 Mesh::Mesh(const std::vector<Vertex>& verticies,
            const std::vector<unsigned int>& indices,
-           const std::vector<Texture>& textures)
-    : verticies(verticies), indices(indices), textures(textures)
+           const std::vector<Texture>& textures,
+           const bool isPbr)
+    : verticies(verticies), indices(indices), textures(textures), isPbr(isPbr)
 {
     setupMesh();
 }
@@ -45,9 +46,16 @@ void Mesh::setupMesh()
 
 unsigned int Mesh::Draw(Shader& shader)
 {
+    unsigned int albedoNr = 1;
+    unsigned int metallicNr = 1;
+    unsigned int roughnessNr = 1;
+    unsigned int aoNr = 1;
+
     unsigned int diffuseNr = 1;
     unsigned int specularNr = 1;
     unsigned int normalNr = 1;
+
+    shader.setBool("isPbr", isPbr);
 
     for (unsigned int i = 0; i < textures.size(); i++)
     {
@@ -56,21 +64,48 @@ unsigned int Mesh::Draw(Shader& shader)
 
         std::string number;
         std::string name = textures[i].type;
-        if (name == "texture_diffuse")
-        {
-            number = std::to_string(diffuseNr++);
-        }
-        else if (name == "texture_specular")
-        {
-            number = std::to_string(specularNr++);
-        }
-        else if (name == "texture_normal")
+        std::string materialName;
+
+        if (name == "texture_normal")
         {
             number = std::to_string(normalNr++);
         }
 
-        std::string materialName;
-        materialName.append("material.").append(name).append(number);
+        if (isPbr)
+        {
+            if (name == "texture_albedo")
+            {
+                number = std::to_string(albedoNr++);
+            }
+            else if (name == "texture_metallic")
+            {
+                number = std::to_string(metallicNr++);
+            }
+            else if (name == "texture_roughness")
+            {
+                number = std::to_string(roughnessNr++);
+            }
+            else if (name == "texture_ao")
+            {
+                number = std::to_string(aoNr++);
+            }
+
+            materialName.append("materialPbr.").append(name).append(number);
+        }
+        else
+        {
+            if (name == "texture_diffuse")
+            {
+                number = std::to_string(diffuseNr++);
+            }
+            else if (name == "texture_specular")
+            {
+                number = std::to_string(specularNr++);
+            }
+
+            materialName.append("material.").append(name).append(number);
+        }
+
         shader.setInt(materialName, i);
         glBindTexture(GL_TEXTURE_2D, textures[i].id);
     }
