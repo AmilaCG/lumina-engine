@@ -22,5 +22,5 @@ Developing an OpenGL-based rendering engine while learning basic concepts from [
 | HDR (High Dynamic Range) | Done |
 | Bloom | To do |
 | SSAO (Screen-Space Ambient Occlusion) | To do |
-| PBR lighting | To do |
+| PBR lighting | In progress |
 | Path tracing | To do |
