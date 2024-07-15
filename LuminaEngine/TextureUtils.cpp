@@ -36,7 +36,6 @@ namespace TextureUtils
         else
         {
             std::cout << "Texture failed to load at path: " << filePath << std::endl;
-            stbi_image_free(data);
             return 0;
         }
 
@@ -56,7 +55,6 @@ namespace TextureUtils
             if (!data)
             {
                 std::cout << "Texture failed to load at path: " << filePaths[i] << std::endl;
-                stbi_image_free(data);
                 return 0;
             }
 
@@ -86,7 +84,38 @@ namespace TextureUtils
         return textureID;
     }
 
-    int evaluateFormats(const int& nrChannels, GLenum& internalFormat, GLenum& dataFormat, const bool& correctGamma)
+    unsigned int loadHdrImage(const std::string& filePath)
+    {
+        unsigned int textureID = 0;
+        glGenTextures(1, &textureID);
+        glBindTexture(GL_TEXTURE_2D, textureID);
+
+        stbi_set_flip_vertically_on_load(true);
+        int width, height, nrChannels;
+        float* data = stbi_loadf(filePath.c_str(), &width, &height, &nrChannels, 0);
+        if (!data)
+        {
+            std::cout << "Texture failed to load at path: " << filePath << std::endl;
+            return 0;
+        }
+
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, width, height, 0, GL_RGB, GL_FLOAT, data);
+        stbi_image_free(data);
+
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glBindTexture(GL_TEXTURE_2D, 0);
+
+        return textureID;
+    }
+
+    int evaluateFormats(
+        const int& nrChannels,
+        GLenum& internalFormat,
+        GLenum& dataFormat,
+        const bool& correctGamma = false)
     {
         switch (nrChannels)
         {

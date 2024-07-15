@@ -7,5 +7,6 @@ namespace TextureUtils
 {
     unsigned int loadTexture(const std::string& filePath, const bool& gammaCorrection);
     unsigned int loadCubemapTexture(const std::array<std::string, 6>& filePaths, const bool& gammaCorrection);
+    unsigned int loadHdrImage(const std::string& filePath);
     int evaluateFormats(const int& nrChannels, GLenum& internalFormat, GLenum& dataFormat, const bool& correctGamma);
 }

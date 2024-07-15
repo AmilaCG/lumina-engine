@@ -25,6 +25,7 @@ void setLightParameters();
 glm::vec3 getCameraDirection(double yaw, double pitch);
 void displayUI(const unsigned int& triangleCount);
 void deinit();
+void renderCube();
 
 const unsigned int SCR_WIDTH = 1280;
 const unsigned int SCR_HEIGHT = 720;
@@ -44,15 +45,37 @@ const char* SCR_F_SHADER_PATH = "Assets/Shaders/shader_screen.frag";
 const char* SKYBOX_V_SHADER_PATH = "Assets/Shaders/shader_skybox.vert";
 const char* SKYBOX_F_SHADER_PATH = "Assets/Shaders/shader_skybox.frag";
 
+const char* EQR_TO_CUBE_V_SHADER_PATH = "Assets/Shaders/shader_eqrect_to_cubemap.vert";
+const char* EQR_TO_CUBE_F_SHADER_PATH = "Assets/Shaders/shader_eqrect_to_cubemap.frag";
+
+const std::string HDR_IMAGE_PATH = "Assets/Textures/Skybox/adams_place_bridge_4k.hdr";
+constexpr int SKYBOX_RES = 2048;
+
+// Reserving unit 0 to 4 for PBR/phong material texture maps
+constexpr unsigned int cubemapTexUnit = 5;
+constexpr unsigned int hdriTexUnit = 6;
+constexpr unsigned int screenTexUnit = 7;
+
 static float pos[3];
 static float rot[3];
 static float scale[] = {1.0f, 1.0f, 1.0f};
-bool shouldEnableReflections;
-bool shouldEnableRefractions;
-static bool show_skybox;
+bool shouldEnableReflections = false;
+bool shouldEnableRefractions = false;
+static bool show_skybox = false;
 
 const glm::vec3 world_front(0.0f, 0.0f, -1.0f);
 const glm::vec3 world_up(0.0f, 1.0f, 0.0f);
+
+const glm::mat4 captureProjection = glm::perspective(glm::radians(90.0f), 1.0f, 0.1f, 10.0f);
+const glm::mat4 captureViews[] =
+{
+    glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3( 1.0f,  0.0f,  0.0f), glm::vec3(0.0f, -1.0f,  0.0f)),
+    glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(-1.0f,  0.0f,  0.0f), glm::vec3(0.0f, -1.0f,  0.0f)),
+    glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3( 0.0f,  1.0f,  0.0f), glm::vec3(0.0f,  0.0f,  1.0f)),
+    glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3( 0.0f, -1.0f,  0.0f), glm::vec3(0.0f,  0.0f, -1.0f)),
+    glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3( 0.0f,  0.0f,  1.0f), glm::vec3(0.0f, -1.0f,  0.0f)),
+    glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3( 0.0f,  0.0f, -1.0f), glm::vec3(0.0f, -1.0f,  0.0f))
+ };
 
 glm::vec3 cameraPosition(0.0f, 0.0f, 5.0f);
 glm::vec3 cameraFront = world_front;
@@ -73,30 +96,26 @@ bool isLeftMouseHolding = false;
 double mouseHoldStartTime = 0.0f;
 double mouseHoldDuration = 0.0f;
 
-Model* guitarBackpackModel;
-LightPreview* lightPreview;
-Shader* backpackShader;
-Shader* lightShader;
-Shader* screenShader;
-Shader* skyboxShader;
+Model* guitarBackpackModel = nullptr;
+LightPreview* lightPreview = nullptr;
+Shader* backpackShader = nullptr;
+Shader* lightShader = nullptr;
+Shader* screenShader = nullptr;
+Shader* skyboxShader = nullptr;
+Shader* equirectToCubemapShader = nullptr;
 
-unsigned int framebuffer;
-unsigned int textureColorbuffer;
-unsigned int rbo;
-unsigned int quadVAO;
-unsigned int quadVBO;
+unsigned int framebuffer = 0;
+unsigned int textureColorbuffer = 0;
+unsigned int rbo = 0;
+unsigned int quadVAO = 0;
+unsigned int quadVBO = 0;
 
-unsigned int texCubemap;
-std::string cubemapFaces[] = {
-    "Assets/Textures/Skybox/right.jpg",
-    "Assets/Textures/Skybox/left.jpg",
-    "Assets/Textures/Skybox/top.jpg",
-    "Assets/Textures/Skybox/bottom.jpg",
-    "Assets/Textures/Skybox/front.jpg",
-    "Assets/Textures/Skybox/back.jpg",
-};
-unsigned int skyboxVAO;
-unsigned int skyboxVBO;
+unsigned int hdriTexture = 0;
+unsigned int captureFBO = 0;
+unsigned int captureRBO = 0;
+unsigned int envCubemap = 0;
+unsigned int cubeVAO = 0;
+unsigned int cubeVBO = 0;
 
 glm::vec3 pointLightPositions[] = {
         glm::vec3(1.2f,  0.2f,  2.0f),
@@ -113,7 +132,7 @@ glm::vec3 pointLightColors[] = {
 };
 
 // Vertex attributes for a quad that fills the entire screen in Normalized Device Coordinates
-float quadVertices[] = {
+constexpr float quadVertices[] = {
     // positions   // texCoords
     -1.0f,  1.0f,  0.0f, 1.0f,
     -1.0f, -1.0f,  0.0f, 0.0f,
@@ -122,51 +141,6 @@ float quadVertices[] = {
     -1.0f,  1.0f,  0.0f, 1.0f,
      1.0f, -1.0f,  1.0f, 0.0f,
      1.0f,  1.0f,  1.0f, 1.0f
-};
-
-float skyboxVertices[] = {
-    // positions
-    -1.0f,  1.0f, -1.0f,
-    -1.0f, -1.0f, -1.0f,
-     1.0f, -1.0f, -1.0f,
-     1.0f, -1.0f, -1.0f,
-     1.0f,  1.0f, -1.0f,
-    -1.0f,  1.0f, -1.0f,
-
-    -1.0f, -1.0f,  1.0f,
-    -1.0f, -1.0f, -1.0f,
-    -1.0f,  1.0f, -1.0f,
-    -1.0f,  1.0f, -1.0f,
-    -1.0f,  1.0f,  1.0f,
-    -1.0f, -1.0f,  1.0f,
-
-     1.0f, -1.0f, -1.0f,
-     1.0f, -1.0f,  1.0f,
-     1.0f,  1.0f,  1.0f,
-     1.0f,  1.0f,  1.0f,
-     1.0f,  1.0f, -1.0f,
-     1.0f, -1.0f, -1.0f,
-
-    -1.0f, -1.0f,  1.0f,
-    -1.0f,  1.0f,  1.0f,
-     1.0f,  1.0f,  1.0f,
-     1.0f,  1.0f,  1.0f,
-     1.0f, -1.0f,  1.0f,
-    -1.0f, -1.0f,  1.0f,
-
-    -1.0f,  1.0f, -1.0f,
-     1.0f,  1.0f, -1.0f,
-     1.0f,  1.0f,  1.0f,
-     1.0f,  1.0f,  1.0f,
-    -1.0f,  1.0f,  1.0f,
-    -1.0f,  1.0f, -1.0f,
-
-    -1.0f, -1.0f, -1.0f,
-    -1.0f, -1.0f,  1.0f,
-     1.0f, -1.0f, -1.0f,
-     1.0f, -1.0f, -1.0f,
-    -1.0f, -1.0f,  1.0f,
-     1.0f, -1.0f,  1.0f
 };
 
 void processInput(GLFWwindow *window)
@@ -202,8 +176,6 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height)
 
 void sceneSetup(GLFWwindow* window)
 {
-    glViewport(0, 0, SCR_WIDTH, SCR_HEIGHT);
-
     constexpr bool isPbr = true;
     guitarBackpackModel = new Model(BACKPACK_MODEL_PATH, isPbr);
     backpackShader = new Shader(OBJ_V_SHADER_PATH, OBJ_F_SHADER_PATH);
@@ -211,6 +183,7 @@ void sceneSetup(GLFWwindow* window)
     lightShader = new Shader(LIGHT_V_SHADER_PATH, LIGHT_F_SHADER_PATH);
     screenShader = new Shader(SCR_V_SHADER_PATH, SCR_F_SHADER_PATH);
     skyboxShader = new Shader(SKYBOX_V_SHADER_PATH, SKYBOX_F_SHADER_PATH);
+    equirectToCubemapShader = new Shader(EQR_TO_CUBE_V_SHADER_PATH, EQR_TO_CUBE_F_SHADER_PATH);
 
     // IMGUI setup
     IMGUI_CHECKVERSION();
@@ -257,17 +230,55 @@ void sceneSetup(GLFWwindow* window)
     }
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
-    // Load cubemap
-    texCubemap = TextureUtils::loadCubemapTexture(std::to_array(cubemapFaces), true);
+    glGenFramebuffers(1, &captureFBO);
+    glGenRenderbuffers(1, &captureRBO);
+    glBindFramebuffer(GL_FRAMEBUFFER, captureFBO);
+    glBindRenderbuffer(GL_RENDERBUFFER, captureRBO);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, SKYBOX_RES, SKYBOX_RES);
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, captureRBO);
 
-    // Skybox VAO
-    glGenVertexArrays(1, &skyboxVAO);
-    glGenBuffers(1, &skyboxVBO);
-    glBindVertexArray(skyboxVAO);
-    glBindBuffer(GL_ARRAY_BUFFER, skyboxVBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(skyboxVertices), &skyboxVertices, GL_STATIC_DRAW);
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+    glGenTextures(1, &envCubemap);
+    glActiveTexture(GL_TEXTURE5);
+    glBindTexture(GL_TEXTURE_CUBE_MAP, envCubemap);
+    for (unsigned int i = 0; i < 6; i++)
+    {
+        glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i,
+            0, GL_RGB16F, SKYBOX_RES, SKYBOX_RES, 0, GL_RGB, GL_FLOAT, nullptr);
+    }
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+    // Load cubemap
+    hdriTexture = TextureUtils::loadHdrImage(HDR_IMAGE_PATH);
+
+    // Convert HDR equirectangular environment map to cubemap equivalent
+    equirectToCubemapShader->use();
+    equirectToCubemapShader->setMat4("projection", captureProjection);
+    equirectToCubemapShader->setInt("equirectangularMap", hdriTexUnit);
+    glActiveTexture(GL_TEXTURE0 + hdriTexUnit);
+    glBindTexture(GL_TEXTURE_2D, hdriTexture);
+
+    glViewport(0, 0, SKYBOX_RES, SKYBOX_RES); // Configure the viewport to the capture dimensions
+    glBindFramebuffer(GL_FRAMEBUFFER, captureFBO);
+    for (int i = 0; i < 6; i++)
+    {
+        equirectToCubemapShader->setMat4("view", captureViews[i]);
+
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
+                               GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, envCubemap, 0);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+        renderCube(); // Renders a 1x1 cube
+    }
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+    // Before rendering, config the viewport to the original framebuffer's screen dimensions
+    int scrWidth, scrHeight;
+    glfwGetFramebufferSize(window, &scrWidth, &scrHeight);
+    glViewport(0, 0, scrWidth, scrHeight);
 }
 
 void setLightParameters()
@@ -322,8 +333,6 @@ void setLightParameters()
 
 void renderLoop(GLFWwindow* window)
 {
-    // Reserving unit 0 to 4 for PBR/phong material texture maps
-    constexpr unsigned int skyboxTexUnit = 5;
     unsigned int indiceCount = 0;
     processInput(window);
     glfwPollEvents();
@@ -359,9 +368,9 @@ void renderLoop(GLFWwindow* window)
     backpackShader->setMat4("model", model);
 
     // Activate and bind skybox texture for reflections before drawing the model
-    glActiveTexture(GL_TEXTURE0 + skyboxTexUnit);
-    glBindTexture(GL_TEXTURE_CUBE_MAP, texCubemap);
-    backpackShader->setInt("skybox", skyboxTexUnit);
+    glActiveTexture(GL_TEXTURE0 + cubemapTexUnit);
+    glBindTexture(GL_TEXTURE_CUBE_MAP, envCubemap);
+    backpackShader->setInt("skybox", cubemapTexUnit);
     backpackShader->setBool("shouldEnableReflections", shouldEnableReflections);
     backpackShader->setBool("shouldEnableRefractions", shouldEnableRefractions);
 
@@ -370,15 +379,15 @@ void renderLoop(GLFWwindow* window)
     lightShader->use();
     lightShader->setMat4("view", view);
     lightShader->setMat4("projection", projection);
-    unsigned int i = 0;
-    for (const glm::vec3& lightPos : pointLightPositions)
+
+    for (int i = 0; i < std::size(pointLightPositions); i++)
     {
         model = glm::mat4(1.0f);
-        model = glm::translate(model, lightPos);
+        model = glm::translate(model, pointLightPositions[i]);
         model = glm::scale(model, glm::vec3(0.2f));
         lightShader->setMat4("model", model);
 
-        lightPreview->Draw(*lightShader, pointLightColors[i++]);
+        lightPreview->Draw(*lightShader, pointLightColors[i]);
     }
 
     if (show_skybox)
@@ -394,9 +403,8 @@ void renderLoop(GLFWwindow* window)
         const auto viewSkybox = glm::mat4(glm::mat3(view));
         skyboxShader->setMat4("view", viewSkybox);
         skyboxShader->setMat4("projection", projection);
-        skyboxShader->setInt("skybox", skyboxTexUnit);
-        glBindVertexArray(skyboxVAO);
-        glDrawArrays(GL_TRIANGLES, 0, 36);
+        skyboxShader->setInt("skybox", cubemapTexUnit);
+        renderCube();
         glDepthFunc(GL_LESS); // Set depth function back to default
     }
 
@@ -407,10 +415,10 @@ void renderLoop(GLFWwindow* window)
     screenShader->use();
     screenShader->setFloat("gamma", 2.0f);
     screenShader->setFloat("exposure", 1.0f);
-    screenShader->setInt("screenTexture", 0); // Expected texture unit is 0
+    screenShader->setInt("screenTexture", screenTexUnit);
     glBindVertexArray(quadVAO);
     glDisable(GL_DEPTH_TEST);
-    glActiveTexture(GL_TEXTURE0); // Just making sure the correct texture unit is activated
+    glActiveTexture(GL_TEXTURE0 + screenTexUnit);
     glBindTexture(GL_TEXTURE_2D, textureColorbuffer);
     glDrawArrays(GL_TRIANGLES, 0, 6);
 
@@ -593,13 +601,86 @@ glm::vec3 getCameraDirection(const double yaw, const double pitch)
 
 void deinit()
 {
-    glDeleteTextures(1, &texCubemap);
+    glDeleteTextures(1, &hdriTexture);
     delete(guitarBackpackModel);
     delete(backpackShader);
     delete(lightPreview);
     delete(lightShader);
     delete(screenShader);
     delete(skyboxShader);
+    delete(equirectToCubemapShader);
+}
+
+// Renders a 1x1 3D cube in NDC
+void renderCube()
+{
+    // initialize (if necessary)
+    if (cubeVAO == 0)
+    {
+        constexpr float vertices[] = {
+            // back face
+            -1.0f, -1.0f, -1.0f,  0.0f,  0.0f, -1.0f, 0.0f, 0.0f, // bottom-left
+             1.0f,  1.0f, -1.0f,  0.0f,  0.0f, -1.0f, 1.0f, 1.0f, // top-right
+             1.0f, -1.0f, -1.0f,  0.0f,  0.0f, -1.0f, 1.0f, 0.0f, // bottom-right
+             1.0f,  1.0f, -1.0f,  0.0f,  0.0f, -1.0f, 1.0f, 1.0f, // top-right
+            -1.0f, -1.0f, -1.0f,  0.0f,  0.0f, -1.0f, 0.0f, 0.0f, // bottom-left
+            -1.0f,  1.0f, -1.0f,  0.0f,  0.0f, -1.0f, 0.0f, 1.0f, // top-left
+            // front face
+            -1.0f, -1.0f,  1.0f,  0.0f,  0.0f,  1.0f, 0.0f, 0.0f, // bottom-left
+             1.0f, -1.0f,  1.0f,  0.0f,  0.0f,  1.0f, 1.0f, 0.0f, // bottom-right
+             1.0f,  1.0f,  1.0f,  0.0f,  0.0f,  1.0f, 1.0f, 1.0f, // top-right
+             1.0f,  1.0f,  1.0f,  0.0f,  0.0f,  1.0f, 1.0f, 1.0f, // top-right
+            -1.0f,  1.0f,  1.0f,  0.0f,  0.0f,  1.0f, 0.0f, 1.0f, // top-left
+            -1.0f, -1.0f,  1.0f,  0.0f,  0.0f,  1.0f, 0.0f, 0.0f, // bottom-left
+            // left face
+            -1.0f,  1.0f,  1.0f, -1.0f,  0.0f,  0.0f, 1.0f, 0.0f, // top-right
+            -1.0f,  1.0f, -1.0f, -1.0f,  0.0f,  0.0f, 1.0f, 1.0f, // top-left
+            -1.0f, -1.0f, -1.0f, -1.0f,  0.0f,  0.0f, 0.0f, 1.0f, // bottom-left
+            -1.0f, -1.0f, -1.0f, -1.0f,  0.0f,  0.0f, 0.0f, 1.0f, // bottom-left
+            -1.0f, -1.0f,  1.0f, -1.0f,  0.0f,  0.0f, 0.0f, 0.0f, // bottom-right
+            -1.0f,  1.0f,  1.0f, -1.0f,  0.0f,  0.0f, 1.0f, 0.0f, // top-right
+            // right face
+             1.0f,  1.0f,  1.0f,  1.0f,  0.0f,  0.0f, 1.0f, 0.0f, // top-left
+             1.0f, -1.0f, -1.0f,  1.0f,  0.0f,  0.0f, 0.0f, 1.0f, // bottom-right
+             1.0f,  1.0f, -1.0f,  1.0f,  0.0f,  0.0f, 1.0f, 1.0f, // top-right
+             1.0f, -1.0f, -1.0f,  1.0f,  0.0f,  0.0f, 0.0f, 1.0f, // bottom-right
+             1.0f,  1.0f,  1.0f,  1.0f,  0.0f,  0.0f, 1.0f, 0.0f, // top-left
+             1.0f, -1.0f,  1.0f,  1.0f,  0.0f,  0.0f, 0.0f, 0.0f, // bottom-left
+            // bottom face
+            -1.0f, -1.0f, -1.0f,  0.0f, -1.0f,  0.0f, 0.0f, 1.0f, // top-right
+             1.0f, -1.0f, -1.0f,  0.0f, -1.0f,  0.0f, 1.0f, 1.0f, // top-left
+             1.0f, -1.0f,  1.0f,  0.0f, -1.0f,  0.0f, 1.0f, 0.0f, // bottom-left
+             1.0f, -1.0f,  1.0f,  0.0f, -1.0f,  0.0f, 1.0f, 0.0f, // bottom-left
+            -1.0f, -1.0f,  1.0f,  0.0f, -1.0f,  0.0f, 0.0f, 0.0f, // bottom-right
+            -1.0f, -1.0f, -1.0f,  0.0f, -1.0f,  0.0f, 0.0f, 1.0f, // top-right
+            // top face
+            -1.0f,  1.0f, -1.0f,  0.0f,  1.0f,  0.0f, 0.0f, 1.0f, // top-left
+             1.0f,  1.0f , 1.0f,  0.0f,  1.0f,  0.0f, 1.0f, 0.0f, // bottom-right
+             1.0f,  1.0f, -1.0f,  0.0f,  1.0f,  0.0f, 1.0f, 1.0f, // top-right
+             1.0f,  1.0f,  1.0f,  0.0f,  1.0f,  0.0f, 1.0f, 0.0f, // bottom-right
+            -1.0f,  1.0f, -1.0f,  0.0f,  1.0f,  0.0f, 0.0f, 1.0f, // top-left
+            -1.0f,  1.0f,  1.0f,  0.0f,  1.0f,  0.0f, 0.0f, 0.0f  // bottom-left
+        };
+        glGenVertexArrays(1, &cubeVAO);
+        glGenBuffers(1, &cubeVBO);
+        // fill buffer
+        glBindBuffer(GL_ARRAY_BUFFER, cubeVBO);
+        glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+        // link vertex attributes
+        glBindVertexArray(cubeVAO);
+        glEnableVertexAttribArray(0);
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)0);
+        glEnableVertexAttribArray(1);
+        glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(3 * sizeof(float)));
+        glEnableVertexAttribArray(2);
+        glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(6 * sizeof(float)));
+        glBindBuffer(GL_ARRAY_BUFFER, 0);
+        glBindVertexArray(0);
+    }
+    // render Cube
+    glBindVertexArray(cubeVAO);
+    glDrawArrays(GL_TRIANGLES, 0, 36);
+    glBindVertexArray(0);
 }
 
 int main()

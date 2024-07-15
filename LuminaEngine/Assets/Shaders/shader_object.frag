@@ -88,9 +88,9 @@ vec3 calcSpotLight(SpotLight light, vec3 normal, vec3 fragPos, vec3 viewDir);
 vec3 calcDiffuse(vec3 color, vec3 normal, vec3 lightDir);
 vec3 calcSpecular(vec3 color, vec3 normal, vec3 lightDir, vec3 viewDir);
 vec3 fresnelSchlick(float cosTheta, vec3 F0);
-float DistributionGGX(vec3 N, vec3 H, float roughness);
-float GeometrySchlickGGX(float NdotV, float roughness);
-float GeometrySmith(vec3 N, vec3 V, vec3 L, float roughness);
+float distributionGGX(vec3 N, vec3 H, float roughness);
+float geometrySchlickGGX(float NdotV, float roughness);
+float geometrySmith(vec3 N, vec3 V, vec3 L, float roughness);
 
 vec3 calcDirLight(DirLight light, vec3 normal, vec3 viewDir)
 {
@@ -143,8 +143,8 @@ vec3 calcPbrPointLight(PointLight light, vec3 lightPos, vec3 normal, vec3 fragPo
     F0 = mix(F0, albedo, metallic);
     vec3 F  = fresnelSchlick(max(dot(H, V), 0.0), F0);
 
-    float NDF = DistributionGGX(N, H, roughness);
-    float G = GeometrySmith(N, V, L, roughness);
+    float NDF = distributionGGX(N, H, roughness);
+    float G = geometrySmith(N, V, L, roughness);
 
     // Calculating Cook-Torrance BRDF
     vec3 numerator = NDF * G * F;
@@ -156,7 +156,7 @@ vec3 calcPbrPointLight(PointLight light, vec3 lightPos, vec3 normal, vec3 fragPo
 
     kD *= 1.0 - metallic; // Since metals doesn't refract, nullifying kD with metallic value
 
-    float NdotL = max(dot(N, L), 0.0);
+    float NdotL = max(dot(N, L), 0.0); // Lambert (wi dot n)
     Lo += (kD * albedo / PI + specular) * radiance * NdotL;
 
     vec3 ambient = vec3(0.03) * albedo * ao;
@@ -166,7 +166,7 @@ vec3 calcPbrPointLight(PointLight light, vec3 lightPos, vec3 normal, vec3 fragPo
 }
 
 // Trowbridge-Reitz GGX
-float DistributionGGX(vec3 N, vec3 H, float roughness)
+float distributionGGX(vec3 N, vec3 H, float roughness)
 {
     float a = roughness * roughness; // alfa
     float a2 = a * a;
@@ -180,7 +180,7 @@ float DistributionGGX(vec3 N, vec3 H, float roughness)
     return num / denom;
 }
 
-float GeometrySchlickGGX(float NdotV, float roughness)
+float geometrySchlickGGX(float NdotV, float roughness)
 {
     float r = (roughness + 1.0);
     float k = (r * r) / 8.0;
@@ -191,12 +191,12 @@ float GeometrySchlickGGX(float NdotV, float roughness)
     return num / denom;
 }
 
-float GeometrySmith(vec3 N, vec3 V, vec3 L, float roughness)
+float geometrySmith(vec3 N, vec3 V, vec3 L, float roughness)
 {
     float NdotV = max(dot(N, V), 0.0);
     float NdotL = max(dot(N, L), 0.0);
-    float ggx2 = GeometrySchlickGGX(NdotV, roughness);
-    float ggx1 = GeometrySchlickGGX(NdotL, roughness);
+    float ggx2 = geometrySchlickGGX(NdotV, roughness);
+    float ggx1 = geometrySchlickGGX(NdotL, roughness);
 
     return ggx1 * ggx2;
 }
