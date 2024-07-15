@@ -384,7 +384,7 @@ void renderLoop(GLFWwindow* window)
     {
         model = glm::mat4(1.0f);
         model = glm::translate(model, pointLightPositions[i]);
-        model = glm::scale(model, glm::vec3(0.2f));
+        model = glm::scale(model, glm::vec3(0.1f));
         lightShader->setMat4("model", model);
 
         lightPreview->Draw(*lightShader, pointLightColors[i]);
