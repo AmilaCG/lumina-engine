@@ -125,10 +125,10 @@ glm::vec3 pointLightPositions[] = {
 };
 
 glm::vec3 pointLightColors[] = {
-        glm::vec3(1.0f, 1.0f, 1.0f),
-        glm::vec3(1.0f, 0.0f, 0.0f),
-        glm::vec3(0.0f, 1.0f, 0.0f),
-        glm::vec3(0.0f, 0.0f, 1.0f)
+        glm::vec3(8.0f, 8.0f, 8.0f),
+        glm::vec3(5.0f, 0.0f, 0.0f),
+        glm::vec3(0.0f, 5.0f, 0.0f),
+        glm::vec3(0.0f, 0.0f, 5.0f)
 };
 
 // Vertex attributes for a quad that fills the entire screen in Normalized Device Coordinates
