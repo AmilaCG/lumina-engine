@@ -27,10 +27,11 @@ void displayUI(const unsigned int& triangleCount);
 void deinit();
 void renderCube();
 
-const unsigned int SCR_WIDTH = 1280;
-const unsigned int SCR_HEIGHT = 720;
-const float MOUSE_SENSITIVITY = 0.1f;
-const float DURATION_TO_MOUSE_HOLD = 0.1f; // In seconds
+constexpr unsigned int SCR_WIDTH = 1280;
+constexpr unsigned int SCR_HEIGHT = 720;
+constexpr float MOUSE_SENSITIVITY = 0.1f;
+constexpr float DURATION_TO_MOUSE_HOLD = 0.1f; // In seconds
+constexpr int CUBE_FACE_COUNT = 6;
 
 const char* OBJ_V_SHADER_PATH = "Assets/Shaders/shader_object.vert";
 const char* OBJ_F_SHADER_PATH = "Assets/Shaders/shader_object.frag";
@@ -48,13 +49,18 @@ const char* SKYBOX_F_SHADER_PATH = "Assets/Shaders/shader_skybox.frag";
 const char* EQR_TO_CUBE_V_SHADER_PATH = "Assets/Shaders/shader_eqrect_to_cubemap.vert";
 const char* EQR_TO_CUBE_F_SHADER_PATH = "Assets/Shaders/shader_eqrect_to_cubemap.frag";
 
+const char* IRRADIANCE_V_SHADER_PATH = "Assets/Shaders/shader_irradiance.vert";
+const char* IRRADIANCE_F_SHADER_PATH = "Assets/Shaders/shader_irradiance.frag";
+
 const std::string HDR_IMAGE_PATH = "Assets/Textures/Skybox/adams_place_bridge_4k.hdr";
 constexpr int SKYBOX_RES = 2048;
+constexpr int IRRADIANCE_MAP_RES = 128;
 
 // Reserving unit 0 to 4 for PBR/phong material texture maps
 constexpr unsigned int cubemapTexUnit = 5;
 constexpr unsigned int hdriTexUnit = 6;
 constexpr unsigned int screenTexUnit = 7;
+constexpr unsigned int irradianceTexUnit = 8;
 
 static float pos[3];
 static float rot[3];
@@ -103,6 +109,7 @@ Shader* lightShader = nullptr;
 Shader* screenShader = nullptr;
 Shader* skyboxShader = nullptr;
 Shader* equirectToCubemapShader = nullptr;
+Shader* irradianceShader = nullptr;
 
 unsigned int framebuffer = 0;
 unsigned int textureColorbuffer = 0;
@@ -113,7 +120,8 @@ unsigned int quadVBO = 0;
 unsigned int hdriTexture = 0;
 unsigned int captureFBO = 0;
 unsigned int captureRBO = 0;
-unsigned int envCubemap = 0;
+unsigned int envCubemapTex = 0;
+unsigned int irradianceMapTex = 0;
 unsigned int cubeVAO = 0;
 unsigned int cubeVBO = 0;
 
@@ -184,6 +192,7 @@ void sceneSetup(GLFWwindow* window)
     screenShader = new Shader(SCR_V_SHADER_PATH, SCR_F_SHADER_PATH);
     skyboxShader = new Shader(SKYBOX_V_SHADER_PATH, SKYBOX_F_SHADER_PATH);
     equirectToCubemapShader = new Shader(EQR_TO_CUBE_V_SHADER_PATH, EQR_TO_CUBE_F_SHADER_PATH);
+    irradianceShader = new Shader(IRRADIANCE_V_SHADER_PATH, IRRADIANCE_F_SHADER_PATH);
 
     // IMGUI setup
     IMGUI_CHECKVERSION();
@@ -237,13 +246,27 @@ void sceneSetup(GLFWwindow* window)
     glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, SKYBOX_RES, SKYBOX_RES);
     glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, captureRBO);
 
-    glGenTextures(1, &envCubemap);
-    glActiveTexture(GL_TEXTURE5);
-    glBindTexture(GL_TEXTURE_CUBE_MAP, envCubemap);
-    for (unsigned int i = 0; i < 6; i++)
+    glGenTextures(1, &envCubemapTex);
+    glActiveTexture(GL_TEXTURE0 + cubemapTexUnit);
+    glBindTexture(GL_TEXTURE_CUBE_MAP, envCubemapTex);
+    for (unsigned int i = 0; i < CUBE_FACE_COUNT; i++)
     {
         glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i,
             0, GL_RGB16F, SKYBOX_RES, SKYBOX_RES, 0, GL_RGB, GL_FLOAT, nullptr);
+    }
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+    glGenTextures(1, &irradianceMapTex);
+    glActiveTexture(GL_TEXTURE0 + irradianceTexUnit);
+    glBindTexture(GL_TEXTURE_CUBE_MAP, irradianceMapTex);
+    for (unsigned int i = 0; i < CUBE_FACE_COUNT; i++)
+    {
+        glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i,
+            0, GL_RGB16F, IRRADIANCE_MAP_RES, IRRADIANCE_MAP_RES, 0, GL_RGB, GL_FLOAT, nullptr);
     }
     glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
@@ -262,17 +285,33 @@ void sceneSetup(GLFWwindow* window)
     glBindTexture(GL_TEXTURE_2D, hdriTexture);
 
     glViewport(0, 0, SKYBOX_RES, SKYBOX_RES); // Configure the viewport to the capture dimensions
-    glBindFramebuffer(GL_FRAMEBUFFER, captureFBO);
     for (int i = 0; i < 6; i++)
     {
         equirectToCubemapShader->setMat4("view", captureViews[i]);
-
+        // Already bound to captureFBO
         glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
-                               GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, envCubemap, 0);
+                               GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, envCubemapTex, 0);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-        renderCube(); // Renders a 1x1 cube
+        renderCube();
     }
+
+    irradianceShader->use();
+    irradianceShader->setMat4("projection", captureProjection);
+    irradianceShader->setInt("environmentMap", cubemapTexUnit);
+    glActiveTexture(GL_TEXTURE0 + cubemapTexUnit);
+    glBindTexture(GL_TEXTURE_CUBE_MAP, envCubemapTex);
+    glViewport(0, 0, IRRADIANCE_MAP_RES, IRRADIANCE_MAP_RES);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, IRRADIANCE_MAP_RES, IRRADIANCE_MAP_RES);
+    for (int i = 0; i < CUBE_FACE_COUNT; i++)
+    {
+        irradianceShader->setMat4("view", captureViews[i]);
+        // Already bound to captureFBO
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
+                               GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, irradianceMapTex, 0);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        renderCube();
+    }
+
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
     // Before rendering, config the viewport to the original framebuffer's screen dimensions
@@ -369,7 +408,7 @@ void renderLoop(GLFWwindow* window)
 
     // Activate and bind skybox texture for reflections before drawing the model
     glActiveTexture(GL_TEXTURE0 + cubemapTexUnit);
-    glBindTexture(GL_TEXTURE_CUBE_MAP, envCubemap);
+    glBindTexture(GL_TEXTURE_CUBE_MAP, envCubemapTex);
     backpackShader->setInt("skybox", cubemapTexUnit);
     backpackShader->setBool("shouldEnableReflections", shouldEnableReflections);
     backpackShader->setBool("shouldEnableRefractions", shouldEnableRefractions);
@@ -609,6 +648,7 @@ void deinit()
     delete(screenShader);
     delete(skyboxShader);
     delete(equirectToCubemapShader);
+    delete(irradianceShader);
 }
 
 // Renders a 1x1 3D cube in NDC

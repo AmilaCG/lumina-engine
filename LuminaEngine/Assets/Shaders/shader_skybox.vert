@@ -1,14 +1,14 @@
 #version 330 core
 layout (location = 0) in vec3 aPos;
 
-out vec3 TexCoords;
+out vec3 WorldPos;
 
 uniform mat4 view;
 uniform mat4 projection;
 
 void main()
 {
-    TexCoords = aPos;
+    WorldPos = aPos;
     vec4 pos = projection * view * vec4(aPos, 1.0);
     // How to trick the skybox depth value to be always 1.0:
     // Perspective division is performed after the vertex shader has run (gl_Position.xyz / w).
