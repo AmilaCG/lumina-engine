@@ -76,6 +76,7 @@ uniform SpotLight spotLights[NR_LIGHTS];
 uniform Material material;
 uniform MaterialPbr materialPbr;
 uniform samplerCube skybox;
+uniform samplerCube irradianceMap;
 uniform bool shouldEnableReflections;
 uniform bool shouldEnableRefractions;
 
@@ -151,7 +152,7 @@ vec3 calcPbrPointLight(PointLight light, vec3 lightPos, vec3 normal, vec3 fragPo
     float denominator = 4.0 * max(dot(N, V), 0.0) * max(dot(N, L), 0.0) + 0.0001;
     vec3 specular = numerator / denominator;
 
-    vec3 kS = F; // Reflected light energy
+    vec3 kS = fresnelSchlick(max(dot(N, V), 0.0), F0); // Reflected light energy
     vec3 kD = vec3(1.0) - kS; // Refracted light energy
 
     kD *= 1.0 - metallic; // Since metals doesn't refract, nullifying kD with metallic value
@@ -159,7 +160,9 @@ vec3 calcPbrPointLight(PointLight light, vec3 lightPos, vec3 normal, vec3 fragPo
     float NdotL = max(dot(N, L), 0.0); // Lambert (wi dot n)
     Lo += (kD * albedo / PI + specular) * radiance * NdotL;
 
-    vec3 ambient = vec3(0.03) * albedo * ao;
+    vec3 irradiance = texture(irradianceMap, N).rgb;
+    vec3 diffuse = irradiance * albedo;
+    vec3 ambient = (kD * diffuse) * ao;
     vec3 color = ambient + Lo;
 
     return color;

@@ -412,6 +412,10 @@ void renderLoop(GLFWwindow* window)
     backpackShader->setBool("shouldEnableReflections", shouldEnableReflections);
     backpackShader->setBool("shouldEnableRefractions", shouldEnableRefractions);
 
+    glActiveTexture(GL_TEXTURE0 + irradianceTexUnit);
+    glBindTexture(GL_TEXTURE_CUBE_MAP, irradianceMapTex);
+    backpackShader->setInt("irradianceMap", irradianceTexUnit);
+
     indiceCount += guitarBackpackModel->Draw(*backpackShader);
 
     lightShader->use();
