@@ -57,7 +57,7 @@ constexpr int SKYBOX_RES = 2048;
 constexpr int IRRADIANCE_MAP_RES = 128;
 
 // Reserving unit 0 to 4 for PBR/phong material texture maps
-constexpr unsigned int cubemapTexUnit = 5;
+constexpr unsigned int skyboxTexUnit = 5;
 constexpr unsigned int hdriTexUnit = 6;
 constexpr unsigned int screenTexUnit = 7;
 constexpr unsigned int irradianceTexUnit = 8;
@@ -120,7 +120,7 @@ unsigned int quadVBO = 0;
 unsigned int hdriTexture = 0;
 unsigned int captureFBO = 0;
 unsigned int captureRBO = 0;
-unsigned int envCubemapTex = 0;
+unsigned int skyboxTex = 0;
 unsigned int irradianceMapTex = 0;
 unsigned int cubeVAO = 0;
 unsigned int cubeVBO = 0;
@@ -245,9 +245,9 @@ void sceneSetup(GLFWwindow* window)
     glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, SKYBOX_RES, SKYBOX_RES);
     glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, captureRBO);
 
-    glGenTextures(1, &envCubemapTex);
-    glActiveTexture(GL_TEXTURE0 + cubemapTexUnit);
-    glBindTexture(GL_TEXTURE_CUBE_MAP, envCubemapTex);
+    glGenTextures(1, &skyboxTex);
+    glActiveTexture(GL_TEXTURE0 + skyboxTexUnit);
+    glBindTexture(GL_TEXTURE_CUBE_MAP, skyboxTex);
     for (unsigned int i = 0; i < CUBE_FACE_COUNT; i++)
     {
         glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i,
@@ -289,16 +289,16 @@ void sceneSetup(GLFWwindow* window)
         equirectToCubemapShader->setMat4("view", captureViews[i]);
         // Already bound to captureFBO
         glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
-                               GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, envCubemapTex, 0);
+                               GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, skyboxTex, 0);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         renderCube();
     }
 
     irradianceShader->use();
     irradianceShader->setMat4("projection", captureProjection);
-    irradianceShader->setInt("environmentMap", cubemapTexUnit);
-    glActiveTexture(GL_TEXTURE0 + cubemapTexUnit);
-    glBindTexture(GL_TEXTURE_CUBE_MAP, envCubemapTex);
+    irradianceShader->setInt("environmentMap", skyboxTexUnit);
+    glActiveTexture(GL_TEXTURE0 + skyboxTexUnit);
+    glBindTexture(GL_TEXTURE_CUBE_MAP, skyboxTex);
     glViewport(0, 0, IRRADIANCE_MAP_RES, IRRADIANCE_MAP_RES);
     glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, IRRADIANCE_MAP_RES, IRRADIANCE_MAP_RES);
     for (int i = 0; i < CUBE_FACE_COUNT; i++)
@@ -317,6 +317,25 @@ void sceneSetup(GLFWwindow* window)
     int scrWidth, scrHeight;
     glfwGetFramebufferSize(window, &scrWidth, &scrHeight);
     glViewport(0, 0, scrWidth, scrHeight);
+
+    const glm::mat4 projection = glm::perspective(glm::radians(fov),
+        static_cast<float>(SCR_WIDTH) / static_cast<float>(SCR_HEIGHT), 0.1f, 100.0f);
+
+    // Setting constant uniforms
+    backpackShader->use();
+    backpackShader->setMat4("projection", projection);
+    backpackShader->setInt("skybox", skyboxTexUnit);
+    backpackShader->setInt("irradianceMap", irradianceTexUnit);
+
+    lightShader->use();
+    lightShader->setMat4("projection", projection);
+
+    skyboxShader->use();
+    skyboxShader->setMat4("projection", projection);
+    skyboxShader->setInt("skybox", skyboxTexUnit);
+
+    screenShader->use();
+    screenShader->setInt("screenTexture", screenTexUnit);
 }
 
 void setLightParameters()
@@ -380,8 +399,6 @@ void renderLoop(GLFWwindow* window)
     ImGui::NewFrame();
 
     const glm::mat4 view = glm::lookAt(cameraPosition, cameraPosition + cameraFront, world_up);
-    const glm::mat4 projection = glm::perspective(glm::radians(fov),
-        static_cast<float>(SCR_WIDTH) / static_cast<float>(SCR_HEIGHT), 0.1f, 100.0f);
 
     // Bind to framebuffer and draw scene as we normally would to color texture
     glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
@@ -394,7 +411,6 @@ void renderLoop(GLFWwindow* window)
     setLightParameters();
     backpackShader->setFloat("material.shininess", 192.0f);
     backpackShader->setMat4("view", view);
-    backpackShader->setMat4("projection", projection);
     backpackShader->setVec3("camPos", cameraPosition);
 
     glm::mat4 model = glm::mat4(1.0f);
@@ -406,21 +422,15 @@ void renderLoop(GLFWwindow* window)
     backpackShader->setMat4("model", model);
 
     // Activate and bind skybox texture for reflections before drawing the model
-    glActiveTexture(GL_TEXTURE0 + cubemapTexUnit);
-    glBindTexture(GL_TEXTURE_CUBE_MAP, envCubemapTex);
-    backpackShader->setInt("skybox", cubemapTexUnit);
+    glActiveTexture(GL_TEXTURE0 + skyboxTexUnit);
+    glBindTexture(GL_TEXTURE_CUBE_MAP, skyboxTex);
     backpackShader->setBool("shouldEnableReflections", shouldEnableReflections);
     backpackShader->setBool("shouldEnableRefractions", shouldEnableRefractions);
-
-    glActiveTexture(GL_TEXTURE0 + irradianceTexUnit);
-    glBindTexture(GL_TEXTURE_CUBE_MAP, irradianceMapTex);
-    backpackShader->setInt("irradianceMap", irradianceTexUnit);
 
     indiceCount += guitarBackpackModel->Draw(*backpackShader);
 
     lightShader->use();
     lightShader->setMat4("view", view);
-    lightShader->setMat4("projection", projection);
 
     for (int i = 0; i < std::size(pointLightPositions); i++)
     {
@@ -439,13 +449,11 @@ void renderLoop(GLFWwindow* window)
         // should be GL_EQUAL, some artifacts will occur on the skybox when panning because sometimes
         // incoming pixel depth value < depth value in depth buffer, so we use GL_LEQUAL to avoid them
         glDepthFunc(GL_LEQUAL);
-        skyboxShader->use();
         // Remove translation section of the view transform matrix by taking only the upper-left 3x3 matrix,
         // so the skybox will rotate but not scale or move.
         const auto viewSkybox = glm::mat4(glm::mat3(view));
+        skyboxShader->use();
         skyboxShader->setMat4("view", viewSkybox);
-        skyboxShader->setMat4("projection", projection);
-        skyboxShader->setInt("skybox", cubemapTexUnit);
         renderCube();
         glDepthFunc(GL_LESS); // Set depth function back to default
     }
@@ -457,7 +465,6 @@ void renderLoop(GLFWwindow* window)
     screenShader->use();
     screenShader->setFloat("gamma", 2.0f);
     screenShader->setFloat("exposure", 1.0f);
-    screenShader->setInt("screenTexture", screenTexUnit);
     glBindVertexArray(quadVAO);
     glDisable(GL_DEPTH_TEST);
     glActiveTexture(GL_TEXTURE0 + screenTexUnit);
