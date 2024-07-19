@@ -80,7 +80,12 @@ uniform samplerCube irradianceMap;
 uniform bool shouldEnableReflections;
 uniform bool shouldEnableRefractions;
 
-vec3 Lo = vec3(0.0);
+vec3 normal = vec3(0.0);
+vec3 albedo = vec3(0.0);
+float metallic = 0.0;
+float roughness = 0.0;
+float ao = 0.0;
+vec3 F0 = vec3(0.04); // Non-metallic / dielectric
 
 vec3 calcDirLight(DirLight light, vec3 normal, vec3 viewDir);
 vec3 calcPointLight(PointLight light, vec3 lightPos, vec3 normal, vec3 fragPos, vec3 viewDir);
@@ -126,10 +131,7 @@ vec3 calcPointLight(PointLight light, vec3 lightPos, vec3 normal, vec3 fragPos, 
 
 vec3 calcPbrPointLight(PointLight light, vec3 lightPos, vec3 normal, vec3 fragPos, vec3 viewDir)
 {
-    vec3 albedo = texture(materialPbr.texture_albedo1, TexCoords).rgb;
-    float metallic = texture(materialPbr.texture_metallic1, TexCoords).r;
-    float roughness = texture(materialPbr.texture_roughness1, TexCoords).r;
-    float ao = texture(materialPbr.texture_ao1, TexCoords).r;
+    vec3 radianceOut = vec3(0.0); // Outgoing radiance (Lo)
 
     vec3 N = normal;
     vec3 V = viewDir;
@@ -140,9 +142,7 @@ vec3 calcPbrPointLight(PointLight light, vec3 lightPos, vec3 normal, vec3 fragPo
     float attenuation = 1.0 / (distance * distance);
     vec3 radiance = light.diffuse * attenuation;
 
-    vec3 F0 = vec3(0.04); // Non-metallic / dielectric
-    F0 = mix(F0, albedo, metallic);
-    vec3 F  = fresnelSchlick(max(dot(H, V), 0.0), F0);
+    vec3 F = fresnelSchlick(max(dot(H, V), 0.0), F0);
 
     float NDF = distributionGGX(N, H, roughness);
     float G = geometrySmith(N, V, L, roughness);
@@ -152,20 +152,15 @@ vec3 calcPbrPointLight(PointLight light, vec3 lightPos, vec3 normal, vec3 fragPo
     float denominator = 4.0 * max(dot(N, V), 0.0) * max(dot(N, L), 0.0) + 0.0001;
     vec3 specular = numerator / denominator;
 
-    vec3 kS = fresnelSchlick(max(dot(N, V), 0.0), F0); // Reflected light energy
+    vec3 kS = F; // Reflected light energy
     vec3 kD = vec3(1.0) - kS; // Refracted light energy
 
     kD *= 1.0 - metallic; // Since metals doesn't refract, nullifying kD with metallic value
 
     float NdotL = max(dot(N, L), 0.0); // Lambert (wi dot n)
-    Lo += (kD * albedo / PI + specular) * radiance * NdotL;
+    radianceOut = (kD * albedo / PI + specular) * radiance * NdotL;
 
-    vec3 irradiance = texture(irradianceMap, N).rgb;
-    vec3 diffuse = irradiance * albedo;
-    vec3 ambient = (kD * diffuse) * ao;
-    vec3 color = ambient + Lo;
-
-    return color;
+    return radianceOut;
 }
 
 // Trowbridge-Reitz GGX
@@ -252,10 +247,14 @@ vec3 calcSpecular(vec3 color, vec3 normal, vec3 lightDir, vec3 viewDir)
 
 void main()
 {
-    vec3 normal;
     if (isPbr)
     {
         normal = texture(materialPbr.texture_normal1, TexCoords).rgb;
+        albedo = texture(materialPbr.texture_albedo1, TexCoords).rgb;
+        metallic = texture(materialPbr.texture_metallic1, TexCoords).r;
+        roughness = texture(materialPbr.texture_roughness1, TexCoords).r;
+        ao = texture(materialPbr.texture_ao1, TexCoords).r;
+        F0 = mix(F0, albedo, metallic);
     }
     else
     {
@@ -266,7 +265,8 @@ void main()
     // Light reflection from fragment to camera/eye
     vec3 viewDir = normalize(TangentCamPos - TangentFragPos);
 
-    vec3 result;
+    vec3 result = vec3(0.0);
+    vec3 Lo = vec3(0.0); // Reflectance equation output
 
     // Phase 1: Directional lighting
     if (dirLight.isActive)
@@ -281,11 +281,11 @@ void main()
         {
             if (isPbr)
             {
-                result += calcPbrPointLight(pointLights[i],
-                                            TangentPointLightPos[i],
-                                            normal,
-                                            TangentFragPos,
-                                            viewDir);
+                Lo += calcPbrPointLight(pointLights[i],
+                                        TangentPointLightPos[i],
+                                        normal,
+                                        TangentFragPos,
+                                        viewDir);
             }
             else
             {
@@ -307,6 +307,19 @@ void main()
                                   TangentFragPos,
                                   viewDir);
         }
+    }
+
+    if (isPbr)
+    {
+        // Ambient lighting
+        vec3 kS = fresnelSchlick(max(dot(normal, viewDir), 0.0), F0);
+        vec3 kD = 1.0 - kS;
+        kD *= 1.0 - metallic;
+        vec3 irradiance = texture(irradianceMap, normal).rgb;
+        vec3 diffuse = irradiance * albedo;
+        vec3 ambient = (kD * diffuse) * ao;
+
+        result += (ambient + Lo);
     }
 
     if (shouldEnableReflections)
