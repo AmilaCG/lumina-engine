@@ -52,7 +52,7 @@ const char* EQR_TO_CUBE_F_SHADER_PATH = "Assets/Shaders/shader_eqrect_to_cubemap
 const char* IRRADIANCE_V_SHADER_PATH = "Assets/Shaders/shader_irradiance.vert";
 const char* IRRADIANCE_F_SHADER_PATH = "Assets/Shaders/shader_irradiance.frag";
 
-const std::string HDR_IMAGE_PATH = "Assets/Textures/Skybox/adams_place_bridge_4k.hdr";
+const std::string HDR_IMAGE_PATH = "Assets/Textures/Skybox/pretville_cinema_4k.hdr";
 constexpr int SKYBOX_RES = 2048;
 constexpr int IRRADIANCE_MAP_RES = 128;
 
@@ -133,10 +133,14 @@ glm::vec3 pointLightPositions[] = {
 };
 
 glm::vec3 pointLightColors[] = {
-        glm::vec3(8.0f, 8.0f, 8.0f),
-        glm::vec3(5.0f, 0.0f, 0.0f),
-        glm::vec3(0.0f, 5.0f, 0.0f),
-        glm::vec3(0.0f, 0.0f, 5.0f)
+        // glm::vec3(8.0f, 8.0f, 8.0f),
+        // glm::vec3(5.0f, 0.0f, 0.0f),
+        // glm::vec3(0.0f, 5.0f, 0.0f),
+        // glm::vec3(0.0f, 0.0f, 5.0f)
+        glm::vec3(0.0f),
+        glm::vec3(0.0f),
+        glm::vec3(0.0f),
+        glm::vec3(0.0f),
 };
 
 // Vertex attributes for a quad that fills the entire screen in Normalized Device Coordinates
