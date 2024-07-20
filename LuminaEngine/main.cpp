@@ -148,14 +148,14 @@ glm::vec3 pointLightPositions[] = {
 };
 
 glm::vec3 pointLightColors[] = {
-        // glm::vec3(8.0f, 8.0f, 8.0f),
-        // glm::vec3(5.0f, 0.0f, 0.0f),
-        // glm::vec3(0.0f, 5.0f, 0.0f),
-        // glm::vec3(0.0f, 0.0f, 5.0f)
-        glm::vec3(0.0f),
-        glm::vec3(0.0f),
-        glm::vec3(0.0f),
-        glm::vec3(0.0f),
+        glm::vec3(8.0f, 8.0f, 8.0f),
+        glm::vec3(5.0f, 0.0f, 0.0f),
+        glm::vec3(0.0f, 5.0f, 0.0f),
+        glm::vec3(0.0f, 0.0f, 5.0f),
+        // glm::vec3(0.0f),
+        // glm::vec3(0.0f),
+        // glm::vec3(0.0f),
+        // glm::vec3(0.0f),
 };
 
 void processInput(GLFWwindow *window)
@@ -304,14 +304,14 @@ void sceneSetup(GLFWwindow* window)
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
     // Load cubemap
+    glActiveTexture(GL_TEXTURE0 + hdriTexUnit);
     hdriTexture = TextureUtils::loadHdrImage(HDR_IMAGE_PATH);
+    glBindTexture(GL_TEXTURE_2D, hdriTexture);
 
     // Convert HDR equirectangular environment map to cubemap equivalent
     equirectToCubemapShader->use();
     equirectToCubemapShader->setMat4("projection", captureProjection);
     equirectToCubemapShader->setInt("equirectangularMap", hdriTexUnit);
-    glActiveTexture(GL_TEXTURE0 + hdriTexUnit);
-    glBindTexture(GL_TEXTURE_2D, hdriTexture);
 
     glViewport(0, 0, SKYBOX_RES, SKYBOX_RES); // Configure the viewport to the capture dimensions
     for (int i = 0; i < CUBE_FACE_COUNT; i++)
@@ -399,6 +399,8 @@ void sceneSetup(GLFWwindow* window)
     objectShader->setMat4("projection", projection);
     objectShader->setInt("skybox", skyboxTexUnit);
     objectShader->setInt("irradianceMap", irradianceTexUnit);
+    objectShader->setInt("prefilterMap", prefilterTexUnit);
+    objectShader->setInt("brdfLut", brdfLutTexUnit);
 
     lightShader->use();
     lightShader->setMat4("projection", projection);
