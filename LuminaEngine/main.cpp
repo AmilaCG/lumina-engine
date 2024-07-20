@@ -26,6 +26,7 @@ glm::vec3 getCameraDirection(double yaw, double pitch);
 void displayUI(const unsigned int& triangleCount);
 void deinit();
 void renderCube();
+void renderQuad();
 
 constexpr unsigned int SCR_WIDTH = 1280;
 constexpr unsigned int SCR_HEIGHT = 720;
@@ -55,10 +56,14 @@ const char* IRRADIANCE_F_SHADER_PATH = "Assets/Shaders/shader_irradiance.frag";
 const char* PREFILTER_V_SHADER_PATH = "Assets/Shaders/shader_cube_capture.vert";
 const char* PREFILTER_F_SHADER_PATH = "Assets/Shaders/shader_prefilter.frag";
 
+const char* BRDF_V_SHADER_PATH = "Assets/Shaders/shader_brdf.vert";
+const char* BRDF_F_SHADER_PATH = "Assets/Shaders/shader_brdf.frag";
+
 const std::string HDR_IMAGE_PATH = "Assets/Textures/Skybox/pretville_cinema_4k.hdr";
 constexpr int SKYBOX_RES = 2048;
 constexpr int IRRADIANCE_MAP_RES = 128;
 constexpr int PREFILTER_MAP_RES = 128;
+constexpr int BRDF_MAP_RES = 512;
 
 // Reserving unit 0 to 4 for PBR/phong material texture maps
 constexpr unsigned int skyboxTexUnit = 5;
@@ -66,6 +71,7 @@ constexpr unsigned int hdriTexUnit = 6;
 constexpr unsigned int screenTexUnit = 7;
 constexpr unsigned int irradianceTexUnit = 8;
 constexpr unsigned int prefilterTexUnit = 9;
+constexpr unsigned int brdfLutTexUnit = 10;
 
 static float pos[3];
 static float rot[3];
@@ -116,12 +122,15 @@ Shader* skyboxShader = nullptr;
 Shader* equirectToCubemapShader = nullptr;
 Shader* irradianceShader = nullptr;
 Shader* prefilterShader = nullptr;
+Shader* brdfShader = nullptr;
 
 unsigned int framebuffer = 0;
 unsigned int textureColorbuffer = 0;
 unsigned int rbo = 0;
 unsigned int quadVAO = 0;
 unsigned int quadVBO = 0;
+unsigned int cubeVAO = 0;
+unsigned int cubeVBO = 0;
 
 unsigned int hdriTexture = 0;
 unsigned int captureFBO = 0;
@@ -129,8 +138,7 @@ unsigned int captureRBO = 0;
 unsigned int skyboxTex = 0;
 unsigned int irradianceMapTex = 0;
 unsigned int prefiltetMapTex = 0;
-unsigned int cubeVAO = 0;
-unsigned int cubeVBO = 0;
+unsigned int brdfLutTex = 0;
 
 glm::vec3 pointLightPositions[] = {
         glm::vec3(1.2f,  0.2f,  2.0f),
@@ -148,18 +156,6 @@ glm::vec3 pointLightColors[] = {
         glm::vec3(0.0f),
         glm::vec3(0.0f),
         glm::vec3(0.0f),
-};
-
-// Vertex attributes for a quad that fills the entire screen in Normalized Device Coordinates
-constexpr float quadVertices[] = {
-    // positions   // texCoords
-    -1.0f,  1.0f,  0.0f, 1.0f,
-    -1.0f, -1.0f,  0.0f, 0.0f,
-     1.0f, -1.0f,  1.0f, 0.0f,
-
-    -1.0f,  1.0f,  0.0f, 1.0f,
-     1.0f, -1.0f,  1.0f, 0.0f,
-     1.0f,  1.0f,  1.0f, 1.0f
 };
 
 void processInput(GLFWwindow *window)
@@ -207,6 +203,7 @@ void sceneSetup(GLFWwindow* window)
     equirectToCubemapShader = new Shader(EQR_TO_CUBE_V_SHADER_PATH, EQR_TO_CUBE_F_SHADER_PATH);
     irradianceShader = new Shader(IRRADIANCE_V_SHADER_PATH, IRRADIANCE_F_SHADER_PATH);
     prefilterShader = new Shader(PREFILTER_V_SHADER_PATH, PREFILTER_F_SHADER_PATH);
+    brdfShader = new Shader(BRDF_V_SHADER_PATH, BRDF_F_SHADER_PATH);
 
     // IMGUI setup
     IMGUI_CHECKVERSION();
@@ -217,17 +214,6 @@ void sceneSetup(GLFWwindow* window)
     // install_callback=true will install GLFW callbacks and chain to existing ones.
     ImGui_ImplGlfw_InitForOpenGL(window, true);
     ImGui_ImplOpenGL3_Init();
-
-    // Screen quad VAO
-    glGenVertexArrays(1, &quadVAO);
-    glGenBuffers(1, &quadVBO);
-    glBindVertexArray(quadVAO);
-    glBindBuffer(GL_ARRAY_BUFFER, quadVBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(quadVertices), &quadVertices, GL_STATIC_DRAW);
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)0);
-    glEnableVertexAttribArray(1);
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)(2 * sizeof(float)));
 
     // Framebuffer config
     glGenFramebuffers(1, &framebuffer);
@@ -307,6 +293,16 @@ void sceneSetup(GLFWwindow* window)
     // Generate mipmaps for the cubemap so OpenGL automatically allocates the required memory
     glGenerateMipmap(GL_TEXTURE_CUBE_MAP);
 
+    // BRDF LUT map texture setup
+    glGenTextures(1, &brdfLutTex);
+    glActiveTexture(GL_TEXTURE0 + brdfLutTexUnit);
+    glBindTexture(GL_TEXTURE_2D, brdfLutTex);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RG16F, BRDF_MAP_RES, BRDF_MAP_RES, 0, GL_RG, GL_FLOAT, nullptr);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
     // Load cubemap
     hdriTexture = TextureUtils::loadHdrImage(HDR_IMAGE_PATH);
 
@@ -380,6 +376,14 @@ void sceneSetup(GLFWwindow* window)
         }
     }
 
+    // Already bound to captureFBO and captureRBO
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, BRDF_MAP_RES, BRDF_MAP_RES);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, brdfLutTex, 0);
+    glViewport(0, 0, BRDF_MAP_RES, BRDF_MAP_RES);
+    brdfShader->use();
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    renderQuad();
+
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
     // Before rendering, config the viewport to the original framebuffer's screen dimensions
@@ -401,7 +405,7 @@ void sceneSetup(GLFWwindow* window)
 
     skyboxShader->use();
     skyboxShader->setMat4("projection", projection);
-    skyboxShader->setInt("skybox", prefilterTexUnit);
+    skyboxShader->setInt("skybox", skyboxTexUnit);
 
     screenShader->use();
     screenShader->setInt("screenTexture", screenTexUnit);
@@ -534,11 +538,10 @@ void renderLoop(GLFWwindow* window)
     screenShader->use();
     screenShader->setFloat("gamma", 2.0f);
     screenShader->setFloat("exposure", 1.0f);
-    glBindVertexArray(quadVAO);
     glDisable(GL_DEPTH_TEST);
     glActiveTexture(GL_TEXTURE0 + screenTexUnit);
     glBindTexture(GL_TEXTURE_2D, textureColorbuffer);
-    glDrawArrays(GL_TRIANGLES, 0, 6);
+    renderQuad();
 
     // Wireframe mode
     // glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
@@ -729,6 +732,7 @@ void deinit()
     delete(equirectToCubemapShader);
     delete(irradianceShader);
     delete(prefilterShader);
+    delete(brdfShader);
 }
 
 // Renders a 1x1 3D cube in NDC
@@ -800,6 +804,34 @@ void renderCube()
     // render Cube
     glBindVertexArray(cubeVAO);
     glDrawArrays(GL_TRIANGLES, 0, 36);
+    glBindVertexArray(0);
+}
+
+void renderQuad()
+{
+    if (quadVAO == 0)
+    {
+        constexpr float QUAD_VERTICIES[] = {
+            // positions        // texture Coords
+            -1.0f,  1.0f, 0.0f, 0.0f, 1.0f,
+            -1.0f, -1.0f, 0.0f, 0.0f, 0.0f,
+             1.0f,  1.0f, 0.0f, 1.0f, 1.0f,
+             1.0f, -1.0f, 0.0f, 1.0f, 0.0f,
+        };
+        // setup plane VAO
+        glGenVertexArrays(1, &quadVAO);
+        glGenBuffers(1, &quadVBO);
+        glBindVertexArray(quadVAO);
+        glBindBuffer(GL_ARRAY_BUFFER, quadVBO);
+        glBufferData(GL_ARRAY_BUFFER, sizeof(QUAD_VERTICIES), &QUAD_VERTICIES, GL_STATIC_DRAW);
+        glEnableVertexAttribArray(0);
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
+        glEnableVertexAttribArray(1);
+        glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
+    }
+
+    glBindVertexArray(quadVAO);
+    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
     glBindVertexArray(0);
 }
 
