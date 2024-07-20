@@ -311,7 +311,7 @@ void main()
 
     if (isPbr)
     {
-        // Ambient lighting
+        // Ambient lighting (IBL calculations)
         vec3 kS = fresnelSchlick(max(dot(normal, viewDir), 0.0), F0);
         vec3 kD = 1.0 - kS;
         kD *= 1.0 - metallic;

@@ -33,9 +33,9 @@ constexpr float MOUSE_SENSITIVITY = 0.1f;
 constexpr float DURATION_TO_MOUSE_HOLD = 0.1f; // In seconds
 constexpr int CUBE_FACE_COUNT = 6;
 
+const std::string MODEL_PATH = "Assets/Models/backpack.obj";
 const char* OBJ_V_SHADER_PATH = "Assets/Shaders/shader_object.vert";
 const char* OBJ_F_SHADER_PATH = "Assets/Shaders/shader_object.frag";
-const std::string BACKPACK_MODEL_PATH = "Assets/Models/backpack.obj";
 
 const char* LIGHT_V_SHADER_PATH = "Assets/Shaders/shader_light.vert";
 const char* LIGHT_F_SHADER_PATH = "Assets/Shaders/shader_light.frag";
@@ -46,28 +46,33 @@ const char* SCR_F_SHADER_PATH = "Assets/Shaders/shader_screen.frag";
 const char* SKYBOX_V_SHADER_PATH = "Assets/Shaders/shader_skybox.vert";
 const char* SKYBOX_F_SHADER_PATH = "Assets/Shaders/shader_skybox.frag";
 
-const char* EQR_TO_CUBE_V_SHADER_PATH = "Assets/Shaders/shader_eqrect_to_cubemap.vert";
+const char* EQR_TO_CUBE_V_SHADER_PATH = "Assets/Shaders/shader_cube_capture.vert";
 const char* EQR_TO_CUBE_F_SHADER_PATH = "Assets/Shaders/shader_eqrect_to_cubemap.frag";
 
-const char* IRRADIANCE_V_SHADER_PATH = "Assets/Shaders/shader_irradiance.vert";
+const char* IRRADIANCE_V_SHADER_PATH = "Assets/Shaders/shader_cube_capture.vert";
 const char* IRRADIANCE_F_SHADER_PATH = "Assets/Shaders/shader_irradiance.frag";
+
+const char* PREFILTER_V_SHADER_PATH = "Assets/Shaders/shader_cube_capture.vert";
+const char* PREFILTER_F_SHADER_PATH = "Assets/Shaders/shader_prefilter.frag";
 
 const std::string HDR_IMAGE_PATH = "Assets/Textures/Skybox/pretville_cinema_4k.hdr";
 constexpr int SKYBOX_RES = 2048;
 constexpr int IRRADIANCE_MAP_RES = 128;
+constexpr int PREFILTER_MAP_RES = 128;
 
 // Reserving unit 0 to 4 for PBR/phong material texture maps
 constexpr unsigned int skyboxTexUnit = 5;
 constexpr unsigned int hdriTexUnit = 6;
 constexpr unsigned int screenTexUnit = 7;
 constexpr unsigned int irradianceTexUnit = 8;
+constexpr unsigned int prefilterTexUnit = 9;
 
 static float pos[3];
 static float rot[3];
 static float scale[] = {1.0f, 1.0f, 1.0f};
 bool shouldEnableReflections = false;
 bool shouldEnableRefractions = false;
-static bool show_skybox = false;
+static bool show_skybox = true;
 
 const glm::vec3 world_front(0.0f, 0.0f, -1.0f);
 const glm::vec3 world_up(0.0f, 1.0f, 0.0f);
@@ -102,14 +107,15 @@ bool isLeftMouseHolding = false;
 double mouseHoldStartTime = 0.0f;
 double mouseHoldDuration = 0.0f;
 
-Model* guitarBackpackModel = nullptr;
+Model* modelAsset = nullptr;
 LightPreview* lightPreview = nullptr;
-Shader* backpackShader = nullptr;
+Shader* objectShader = nullptr;
 Shader* lightShader = nullptr;
 Shader* screenShader = nullptr;
 Shader* skyboxShader = nullptr;
 Shader* equirectToCubemapShader = nullptr;
 Shader* irradianceShader = nullptr;
+Shader* prefilterShader = nullptr;
 
 unsigned int framebuffer = 0;
 unsigned int textureColorbuffer = 0;
@@ -122,6 +128,7 @@ unsigned int captureFBO = 0;
 unsigned int captureRBO = 0;
 unsigned int skyboxTex = 0;
 unsigned int irradianceMapTex = 0;
+unsigned int prefiltetMapTex = 0;
 unsigned int cubeVAO = 0;
 unsigned int cubeVBO = 0;
 
@@ -188,15 +195,18 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height)
 
 void sceneSetup(GLFWwindow* window)
 {
+    glEnable(GL_TEXTURE_CUBE_MAP_SEAMLESS);
+
     constexpr bool isPbr = true;
-    guitarBackpackModel = new Model(BACKPACK_MODEL_PATH, isPbr);
-    backpackShader = new Shader(OBJ_V_SHADER_PATH, OBJ_F_SHADER_PATH);
+    modelAsset = new Model(MODEL_PATH, isPbr);
+    objectShader = new Shader(OBJ_V_SHADER_PATH, OBJ_F_SHADER_PATH);
     lightPreview = new LightPreview();
     lightShader = new Shader(LIGHT_V_SHADER_PATH, LIGHT_F_SHADER_PATH);
     screenShader = new Shader(SCR_V_SHADER_PATH, SCR_F_SHADER_PATH);
     skyboxShader = new Shader(SKYBOX_V_SHADER_PATH, SKYBOX_F_SHADER_PATH);
     equirectToCubemapShader = new Shader(EQR_TO_CUBE_V_SHADER_PATH, EQR_TO_CUBE_F_SHADER_PATH);
     irradianceShader = new Shader(IRRADIANCE_V_SHADER_PATH, IRRADIANCE_F_SHADER_PATH);
+    prefilterShader = new Shader(PREFILTER_V_SHADER_PATH, PREFILTER_F_SHADER_PATH);
 
     // IMGUI setup
     IMGUI_CHECKVERSION();
@@ -242,6 +252,7 @@ void sceneSetup(GLFWwindow* window)
     }
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
+    // Framebuffer and renderbuffer setup for generating cubemaps by capturing the given environment
     glGenFramebuffers(1, &captureFBO);
     glGenRenderbuffers(1, &captureRBO);
     glBindFramebuffer(GL_FRAMEBUFFER, captureFBO);
@@ -249,6 +260,7 @@ void sceneSetup(GLFWwindow* window)
     glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, SKYBOX_RES, SKYBOX_RES);
     glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, captureRBO);
 
+    // Skybox texture setup
     glGenTextures(1, &skyboxTex);
     glActiveTexture(GL_TEXTURE0 + skyboxTexUnit);
     glBindTexture(GL_TEXTURE_CUBE_MAP, skyboxTex);
@@ -260,9 +272,10 @@ void sceneSetup(GLFWwindow* window)
     glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
     glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
+    // Irradiance map texture setup
     glGenTextures(1, &irradianceMapTex);
     glActiveTexture(GL_TEXTURE0 + irradianceTexUnit);
     glBindTexture(GL_TEXTURE_CUBE_MAP, irradianceMapTex);
@@ -277,6 +290,23 @@ void sceneSetup(GLFWwindow* window)
     glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
+    // Prefilter map texture setup
+    glGenTextures(1, &prefiltetMapTex);
+    glActiveTexture(GL_TEXTURE0 + prefilterTexUnit);
+    glBindTexture(GL_TEXTURE_CUBE_MAP, prefiltetMapTex);
+    for (unsigned int i = 0; i < CUBE_FACE_COUNT; i++)
+    {
+        glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i,
+            0, GL_RGB16F, PREFILTER_MAP_RES, PREFILTER_MAP_RES, 0, GL_RGB, GL_FLOAT, nullptr);
+    }
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    // Generate mipmaps for the cubemap so OpenGL automatically allocates the required memory
+    glGenerateMipmap(GL_TEXTURE_CUBE_MAP);
+
     // Load cubemap
     hdriTexture = TextureUtils::loadHdrImage(HDR_IMAGE_PATH);
 
@@ -288,7 +318,7 @@ void sceneSetup(GLFWwindow* window)
     glBindTexture(GL_TEXTURE_2D, hdriTexture);
 
     glViewport(0, 0, SKYBOX_RES, SKYBOX_RES); // Configure the viewport to the capture dimensions
-    for (int i = 0; i < 6; i++)
+    for (int i = 0; i < CUBE_FACE_COUNT; i++)
     {
         equirectToCubemapShader->setMat4("view", captureViews[i]);
         // Already bound to captureFBO
@@ -297,6 +327,11 @@ void sceneSetup(GLFWwindow* window)
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         renderCube();
     }
+
+    // Generate mipmaps of skybox
+    glActiveTexture(GL_TEXTURE0 + skyboxTexUnit);
+    glBindTexture(GL_TEXTURE_CUBE_MAP, skyboxTex);
+    glGenerateMipmap(GL_TEXTURE_CUBE_MAP);
 
     irradianceShader->use();
     irradianceShader->setMat4("projection", captureProjection);
@@ -315,6 +350,36 @@ void sceneSetup(GLFWwindow* window)
         renderCube();
     }
 
+    prefilterShader->use();
+    prefilterShader->setMat4("projection", captureProjection);
+    prefilterShader->setInt("environmentMap", skyboxTexUnit);
+    prefilterShader->setInt("skyboxResolution", SKYBOX_RES);
+    glActiveTexture(GL_TEXTURE0 + skyboxTexUnit);
+    glBindTexture(GL_TEXTURE_CUBE_MAP, skyboxTex);
+    constexpr unsigned int MAX_MIP_LEVELS = 8;
+    for (int mip = 0; mip < MAX_MIP_LEVELS; mip++)
+    {
+        // Reisze framebuffer according to mip-level size
+        const auto mipWidth = static_cast<unsigned int>(PREFILTER_MAP_RES * std::pow(0.5, mip));
+        const auto mipHeight = static_cast<unsigned int>(PREFILTER_MAP_RES * std::pow(0.5, mip));
+        // Already bound to captureRBO
+        glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, mipWidth, mipHeight);
+        glViewport(0, 0, mipWidth, mipHeight);
+
+        float roughness = static_cast<float>(mip) / static_cast<float>(MAX_MIP_LEVELS - 1);
+        prefilterShader->setFloat("roughness", roughness);
+
+        for (int i = 0; i < CUBE_FACE_COUNT; i++)
+        {
+            prefilterShader->setMat4("view", captureViews[i]);
+            // Already bound to captureFBO
+            glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
+                                   GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, prefiltetMapTex, mip);
+            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+            renderCube();
+        }
+    }
+
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
     // Before rendering, config the viewport to the original framebuffer's screen dimensions
@@ -326,17 +391,17 @@ void sceneSetup(GLFWwindow* window)
         static_cast<float>(SCR_WIDTH) / static_cast<float>(SCR_HEIGHT), 0.1f, 100.0f);
 
     // Setting constant uniforms
-    backpackShader->use();
-    backpackShader->setMat4("projection", projection);
-    backpackShader->setInt("skybox", skyboxTexUnit);
-    backpackShader->setInt("irradianceMap", irradianceTexUnit);
+    objectShader->use();
+    objectShader->setMat4("projection", projection);
+    objectShader->setInt("skybox", skyboxTexUnit);
+    objectShader->setInt("irradianceMap", irradianceTexUnit);
 
     lightShader->use();
     lightShader->setMat4("projection", projection);
 
     skyboxShader->use();
     skyboxShader->setMat4("projection", projection);
-    skyboxShader->setInt("skybox", skyboxTexUnit);
+    skyboxShader->setInt("skybox", prefilterTexUnit);
 
     screenShader->use();
     screenShader->setInt("screenTexture", screenTexUnit);
@@ -349,11 +414,11 @@ void setLightParameters()
     glm::vec3 specular(1.0f);
 
     // Directional light
-    backpackShader->setBool("dirLight.isActive", false);
-    backpackShader->setVec3("dirLightDirection", glm::vec3(-0.2f, -1.0f, -0.3f));
-    backpackShader->setVec3("dirLight.ambient", ambient);
-    backpackShader->setVec3("dirLight.diffuse", diffuse);
-    backpackShader->setVec3("dirLight.specular", specular);
+    objectShader->setBool("dirLight.isActive", false);
+    objectShader->setVec3("dirLightDirection", glm::vec3(-0.2f, -1.0f, -0.3f));
+    objectShader->setVec3("dirLight.ambient", ambient);
+    objectShader->setVec3("dirLight.diffuse", diffuse);
+    objectShader->setVec3("dirLight.specular", specular);
 
     // Point light
     int i = 0;
@@ -362,34 +427,34 @@ void setLightParameters()
         std::ostringstream ossLightPos;
         ossLightPos << "pointLightPos[" << i << "]";
         std::string pointLightPos = ossLightPos.str();
-        backpackShader->setVec3(pointLightPos, position);
+        objectShader->setVec3(pointLightPos, position);
 
         std::ostringstream ossLightParams;
         ossLightParams << "pointLights[" << i << "]";
         std::string pointLight = ossLightParams.str();
-        backpackShader->setBool(pointLight + ".isActive", true);
-        backpackShader->setVec3(pointLight + ".ambient", ambient * pointLightColors[i]);
-        backpackShader->setVec3(pointLight + ".diffuse", diffuse * pointLightColors[i]);
-        backpackShader->setVec3(pointLight + ".specular", specular);
+        objectShader->setBool(pointLight + ".isActive", true);
+        objectShader->setVec3(pointLight + ".ambient", ambient * pointLightColors[i]);
+        objectShader->setVec3(pointLight + ".diffuse", diffuse * pointLightColors[i]);
+        objectShader->setVec3(pointLight + ".specular", specular);
         // https://wiki.ogre3d.org/tiki-index.php?page=-Point+Light+Attenuation
-        backpackShader->setFloat(pointLight + ".constant", 1.0f);
-        backpackShader->setFloat(pointLight + ".linear", 0.09f);
-        backpackShader->setFloat(pointLight + ".quadratic", 0.032f);
+        objectShader->setFloat(pointLight + ".constant", 1.0f);
+        objectShader->setFloat(pointLight + ".linear", 0.09f);
+        objectShader->setFloat(pointLight + ".quadratic", 0.032f);
         i++;
     }
 
     // Spot light
-    backpackShader->setBool("spotLights[0].isActive", false);
-    backpackShader->setVec3("spotLightPos[0]", cameraPosition);
-    backpackShader->setVec3("spotLightDir[0]", cameraFront);
-    backpackShader->setFloat("spotLights[0].cutOff", glm::cos(glm::radians(12.5f)));
-    backpackShader->setFloat("spotLights[0].outerCutOff", glm::cos(glm::radians(18.5f)));
-    backpackShader->setVec3("spotLights[0].ambient", glm::vec3(0.2f));
-    backpackShader->setVec3("spotLights[0].diffuse", diffuse);
-    backpackShader->setVec3("spotLights[0].specular", specular);
-    backpackShader->setFloat("spotLights[0].constant", 1.0f);
-    backpackShader->setFloat("spotLights[0].linear", 0.09f);
-    backpackShader->setFloat("spotLights[0].quadratic", 0.032f);
+    objectShader->setBool("spotLights[0].isActive", false);
+    objectShader->setVec3("spotLightPos[0]", cameraPosition);
+    objectShader->setVec3("spotLightDir[0]", cameraFront);
+    objectShader->setFloat("spotLights[0].cutOff", glm::cos(glm::radians(12.5f)));
+    objectShader->setFloat("spotLights[0].outerCutOff", glm::cos(glm::radians(18.5f)));
+    objectShader->setVec3("spotLights[0].ambient", glm::vec3(0.2f));
+    objectShader->setVec3("spotLights[0].diffuse", diffuse);
+    objectShader->setVec3("spotLights[0].specular", specular);
+    objectShader->setFloat("spotLights[0].constant", 1.0f);
+    objectShader->setFloat("spotLights[0].linear", 0.09f);
+    objectShader->setFloat("spotLights[0].quadratic", 0.032f);
 }
 
 void renderLoop(GLFWwindow* window)
@@ -411,11 +476,11 @@ void renderLoop(GLFWwindow* window)
     glClearColor(0.01f, 0.01f, 0.01f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-    backpackShader->use();
+    objectShader->use();
     setLightParameters();
-    backpackShader->setFloat("material.shininess", 192.0f);
-    backpackShader->setMat4("view", view);
-    backpackShader->setVec3("camPos", cameraPosition);
+    objectShader->setFloat("material.shininess", 192.0f);
+    objectShader->setMat4("view", view);
+    objectShader->setVec3("camPos", cameraPosition);
 
     glm::mat4 model = glm::mat4(1.0f);
     model = glm::rotate(model, glm::radians(rot[0]), glm::vec3(1.0, 0.0, 0.0));
@@ -423,15 +488,15 @@ void renderLoop(GLFWwindow* window)
     model = glm::rotate(model, glm::radians(rot[2]), glm::vec3(0.0, 0.0, 1.0));
     model = glm::translate(model, glm::vec3(pos[0], pos[1], pos[2]));
     model = glm::scale(model, glm::vec3(scale[0], scale[1], scale[2]));
-    backpackShader->setMat4("model", model);
+    objectShader->setMat4("model", model);
 
     // Activate and bind skybox texture for reflections before drawing the model
     glActiveTexture(GL_TEXTURE0 + skyboxTexUnit);
     glBindTexture(GL_TEXTURE_CUBE_MAP, skyboxTex);
-    backpackShader->setBool("shouldEnableReflections", shouldEnableReflections);
-    backpackShader->setBool("shouldEnableRefractions", shouldEnableRefractions);
+    objectShader->setBool("shouldEnableReflections", shouldEnableReflections);
+    objectShader->setBool("shouldEnableRefractions", shouldEnableRefractions);
 
-    indiceCount += guitarBackpackModel->Draw(*backpackShader);
+    indiceCount += modelAsset->Draw(*objectShader);
 
     lightShader->use();
     lightShader->setMat4("view", view);
@@ -655,14 +720,15 @@ glm::vec3 getCameraDirection(const double yaw, const double pitch)
 void deinit()
 {
     glDeleteTextures(1, &hdriTexture);
-    delete(guitarBackpackModel);
-    delete(backpackShader);
+    delete(modelAsset);
+    delete(objectShader);
     delete(lightPreview);
     delete(lightShader);
     delete(screenShader);
     delete(skyboxShader);
     delete(equirectToCubemapShader);
     delete(irradianceShader);
+    delete(prefilterShader);
 }
 
 // Renders a 1x1 3D cube in NDC
