@@ -34,7 +34,8 @@ constexpr float MOUSE_SENSITIVITY = 0.1f;
 constexpr float DURATION_TO_MOUSE_HOLD = 0.1f; // In seconds
 constexpr int CUBE_FACE_COUNT = 6;
 
-const std::string MODEL_PATH = "Assets/Models/backpack.obj";
+const std::string MODEL_PATH = "Assets/Models/GuitarBackpack/guitar_backpack.obj";
+// const std::string MODEL_PATH = "Assets/Models/OldTorch/old_torch.obj";
 const char* OBJ_V_SHADER_PATH = "Assets/Shaders/shader_object.vert";
 const char* OBJ_F_SHADER_PATH = "Assets/Shaders/shader_object.frag";
 
@@ -59,7 +60,7 @@ const char* PREFILTER_F_SHADER_PATH = "Assets/Shaders/shader_prefilter.frag";
 const char* BRDF_V_SHADER_PATH = "Assets/Shaders/shader_brdf.vert";
 const char* BRDF_F_SHADER_PATH = "Assets/Shaders/shader_brdf.frag";
 
-const std::string HDR_IMAGE_PATH = "Assets/Textures/Skybox/pretville_cinema_4k.hdr";
+const std::string HDR_IMAGE_PATH = "Assets/Textures/Skybox/adams_place_bridge_4k.hdr";
 constexpr int SKYBOX_RES = 2048;
 constexpr int IRRADIANCE_MAP_RES = 128;
 constexpr int PREFILTER_MAP_RES = 128;

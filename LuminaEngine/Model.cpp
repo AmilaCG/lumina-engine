@@ -7,12 +7,6 @@
 
 Model::Model(const std::string& path, const bool isPbr) : isPbr(isPbr)
 {
-    // Tell stb_image.h to flip loaded texture's on the y-axis (before loading model).
-    // TODO NOTE: This was the recommended way in the tutorial but I commented it because
-    // I can get correct UVs by just removing Assimp's aiProcess_FlipUVS post-process flag.
-    // I need to find out why tutorial is using this.
-    //stbi_set_flip_vertically_on_load(true);
-
     loadModel(path);
 }
 
@@ -42,7 +36,8 @@ unsigned int Model::Draw(Shader& shader)
 void Model::loadModel(const std::string& path)
 {
     Assimp::Importer importer;
-    const aiScene* scene = importer.ReadFile(path, aiProcess_Triangulate | aiProcess_CalcTangentSpace);
+    constexpr unsigned int FLAGS = aiProcess_Triangulate | aiProcess_CalcTangentSpace | aiProcess_FlipUVs;
+    const aiScene* scene = importer.ReadFile(path, FLAGS);
 
     if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode)
     {
