@@ -79,8 +79,7 @@ uniform samplerCube skybox;
 uniform samplerCube irradianceMap;
 uniform samplerCube prefilterMap;
 uniform sampler2D brdfLut;
-uniform bool shouldEnableReflections;
-uniform bool shouldEnableRefractions;
+uniform bool enableIBL;
 
 vec3 normal = vec3(0.0);
 vec3 albedo = vec3(0.0);
@@ -273,8 +272,7 @@ void main()
     // Light reflection from fragment to camera/eye
     vec3 viewDir = normalize(TangentCamPos - TangentFragPos);
 
-    vec3 result = vec3(0.0);
-    vec3 Lo = vec3(0.0); // Reflectance equation output
+    vec3 result = vec3(0.0); // Reflectance equation output of PBR workflow
 
     // Phase 1: Directional lighting
     if (dirLight.isActive)
@@ -289,7 +287,7 @@ void main()
         {
             if (isPbr)
             {
-                Lo += calcPbrPointLight(pointLights[i],
+                result += calcPbrPointLight(pointLights[i],
                                         TangentPointLightPos[i],
                                         normal,
                                         TangentFragPos,
@@ -317,7 +315,7 @@ void main()
         }
     }
 
-    if (isPbr)
+    if (enableIBL && isPbr)
     {
         // Ambient lighting (IBL calculations)
         float cosTheta = max(dot(normal, viewDir), 0.0);
@@ -338,29 +336,7 @@ void main()
 
         vec3 ambient = (kD * diffuse + specular) * ao;
 
-        result += (ambient + Lo);
-    }
-
-    if (shouldEnableReflections)
-    {
-        // Calculating environment reflections
-        vec3 I = -viewDir;
-        vec3 R = reflect(I, normal);
-        // Note that we are converting the reflection vector from tangent space to model space
-        // because vidwDir and norm are in tangent space
-        vec3 envReflection = texture(skybox, inversedTBN * R).rgb;
-        result = envReflection;
-    }
-
-    if (shouldEnableRefractions)
-    {
-        const float airRefractiveIndex = 1.00;
-        const float glassRefractiveIndex = 1.52;
-        float ratio = airRefractiveIndex / glassRefractiveIndex;
-        vec3 I = -viewDir;
-        vec3 R = refract(I, normal, ratio);
-        vec3 envRefraction = texture(skybox, inversedTBN * R).rgb;
-        result = envRefraction;
+        result += ambient;
     }
 
     FragColor = vec4(result, 1.0);

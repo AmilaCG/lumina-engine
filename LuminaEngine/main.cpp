@@ -77,9 +77,9 @@ constexpr unsigned int brdfLutTexUnit = 10;
 static float pos[3];
 static float rot[3];
 static float scale[] = {1.0f, 1.0f, 1.0f};
-bool shouldEnableReflections = false;
-bool shouldEnableRefractions = false;
 static bool show_skybox = true;
+static bool enableIBL = true;
+static bool enable_point_lights = true;
 
 const glm::vec3 world_front(0.0f, 0.0f, -1.0f);
 const glm::vec3 world_up(0.0f, 1.0f, 0.0f);
@@ -93,9 +93,9 @@ const glm::mat4 captureViews[] =
     glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3( 0.0f, -1.0f,  0.0f), glm::vec3(0.0f,  0.0f, -1.0f)),
     glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3( 0.0f,  0.0f,  1.0f), glm::vec3(0.0f, -1.0f,  0.0f)),
     glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3( 0.0f,  0.0f, -1.0f), glm::vec3(0.0f, -1.0f,  0.0f))
- };
+};
 
-glm::vec3 cameraPosition(0.0f, 0.0f, 5.0f);
+glm::vec3 cameraPosition(0.0f, 0.0f, 7.0f);
 glm::vec3 cameraFront = world_front;
 glm::vec3 cameraUp = world_up;
 double camYaw = -90.0f; // Rotation around Y axis
@@ -153,10 +153,6 @@ glm::vec3 pointLightColors[] = {
         glm::vec3(5.0f, 0.0f, 0.0f),
         glm::vec3(0.0f, 5.0f, 0.0f),
         glm::vec3(0.0f, 0.0f, 5.0f),
-        // glm::vec3(0.0f),
-        // glm::vec3(0.0f),
-        // glm::vec3(0.0f),
-        // glm::vec3(0.0f),
 };
 
 void processInput(GLFWwindow *window)
@@ -439,7 +435,7 @@ void setLightParameters()
         std::ostringstream ossLightParams;
         ossLightParams << "pointLights[" << i << "]";
         std::string pointLight = ossLightParams.str();
-        objectShader->setBool(pointLight + ".isActive", true);
+        objectShader->setBool(pointLight + ".isActive", enable_point_lights);
         objectShader->setVec3(pointLight + ".ambient", ambient * pointLightColors[i]);
         objectShader->setVec3(pointLight + ".diffuse", diffuse * pointLightColors[i]);
         objectShader->setVec3(pointLight + ".specular", specular);
@@ -500,22 +496,23 @@ void renderLoop(GLFWwindow* window)
     // Activate and bind skybox texture for reflections before drawing the model
     glActiveTexture(GL_TEXTURE0 + skyboxTexUnit);
     glBindTexture(GL_TEXTURE_CUBE_MAP, skyboxTex);
-    objectShader->setBool("shouldEnableReflections", shouldEnableReflections);
-    objectShader->setBool("shouldEnableRefractions", shouldEnableRefractions);
+    objectShader->setBool("enableIBL", enableIBL);
 
     indiceCount += modelAsset->Draw(*objectShader);
 
-    lightShader->use();
-    lightShader->setMat4("view", view);
-
-    for (int i = 0; i < std::size(pointLightPositions); i++)
+    if (enable_point_lights)
     {
-        model = glm::mat4(1.0f);
-        model = glm::translate(model, pointLightPositions[i]);
-        model = glm::scale(model, glm::vec3(0.1f));
-        lightShader->setMat4("model", model);
+        lightShader->use();
+        lightShader->setMat4("view", view);
+        for (int i = 0; i < std::size(pointLightPositions); i++)
+        {
+            model = glm::mat4(1.0f);
+            model = glm::translate(model, pointLightPositions[i]);
+            model = glm::scale(model, glm::vec3(0.1f));
+            lightShader->setMat4("model", model);
 
-        lightPreview->Draw(*lightShader, pointLightColors[i]);
+            lightPreview->Draw(*lightShader, pointLightColors[i]);
+        }
     }
 
     if (show_skybox)
@@ -583,48 +580,13 @@ void displayUI(const unsigned int& triangleCount)
 
     ImGui::Spacing();
 
-    // Start Env Reflections section
-    const char* items[] = { "OFF", "Reflections ON", "Refractions ON" };
-    static int item_current_idx = 0; // Here we store our selection data as an index.
-    static int item_prev_idx = 0;
+    ImGui::SeparatorText("Lights");
+    ImGui::Checkbox("Enable Point Lights", &enable_point_lights);
 
-    static ImGuiComboFlags env_ref_combo_flags = 0;
-    env_ref_combo_flags |= ImGuiComboFlags_WidthFitPreview;
-    const char* combo_preview_value = items[item_current_idx];
-    if (ImGui::BeginCombo("Reflections/Refractions", combo_preview_value, env_ref_combo_flags))
-    {
-        for (int n = 0; n < IM_ARRAYSIZE(items); n++)
-        {
-            const bool is_selected = (item_current_idx == n);
-            if (ImGui::Selectable(items[n], is_selected))
-                item_current_idx = n;
+    ImGui::Spacing();
 
-            // Set the initial focus when opening the combo (scrolling + keyboard navigation focus)
-            if (is_selected)
-                ImGui::SetItemDefaultFocus();
-        }
-        ImGui::EndCombo();
-    }
-    if (item_current_idx != item_prev_idx)
-    {
-        switch (item_current_idx)
-        {
-            case 0:
-                shouldEnableReflections = false;
-                shouldEnableRefractions = false;
-                break;
-            case 1:
-                shouldEnableReflections = true;
-                shouldEnableRefractions = false;
-                break;
-            case 2:
-                shouldEnableReflections = false;
-                shouldEnableRefractions = true;
-                break;
-        }
-        item_prev_idx = item_current_idx;
-    }
-    // End Env Reflections section
+    ImGui::SeparatorText("IBL (Image Based Lighting)");
+    ImGui::Checkbox("Enable IBL", &enableIBL);
 
     ImGui::End();
     // End Settings window
