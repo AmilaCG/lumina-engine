@@ -18,9 +18,7 @@ Developing an OpenGL-based rendering engine while learning basic concepts from [
 | Environment reflections & refractions | Done |
 | Anti-aliasing | To do |
 | Shadows | To do |
-| Parallax mapping | To do |
 | HDR (High Dynamic Range) | Done |
 | Bloom | Done |
 | SSAO (Screen-Space Ambient Occlusion) | To do |
 | PBR lighting | Done |
-| Path tracing | To do |
