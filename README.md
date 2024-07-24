@@ -1,5 +1,5 @@
 # Lumina Engine
-Developing an OpenGL-based rendering engine while learning basic concepts from [learnopengl.com](https://learnopengl.com/). This project aims to build a [physically based](https://en.wikipedia.org/wiki/Physically_based_rendering) rendering (PBR) engine which ultimately does [path tracing](https://blogs.nvidia.com/blog/what-is-path-tracing/).  
+Developing an OpenGL-based rendering engine while learning basic concepts from [learnopengl.com](https://learnopengl.com/). This project aims to build a real-time [physically based](https://en.wikipedia.org/wiki/Physically_based_rendering) rendering (PBR) engine.  
 
 ## Current Progress
 ![Demo](Docs/demo.png)
@@ -20,7 +20,7 @@ Developing an OpenGL-based rendering engine while learning basic concepts from [
 | Shadows | To do |
 | Parallax mapping | To do |
 | HDR (High Dynamic Range) | Done |
-| Bloom | To do |
+| Bloom | Done |
 | SSAO (Screen-Space Ambient Occlusion) | To do |
 | PBR lighting | Done |
 | Path tracing | To do |

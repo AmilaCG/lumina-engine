@@ -82,6 +82,8 @@ static float scale[] = {1.0f, 1.0f, 1.0f};
 static bool show_skybox = true;
 static bool enableIBL = true;
 static bool enable_point_lights = true;
+static bool enable_bloom = true;
+static float bloom_filter_radius = 0.005f;
 
 const glm::vec3 world_front(0.0f, 0.0f, -1.0f);
 const glm::vec3 world_up(0.0f, 1.0f, 0.0f);
@@ -103,8 +105,6 @@ glm::vec3 cameraUp = world_up;
 double camYaw = -90.0f; // Rotation around Y axis
 double camPitch = 0.0f; // Rotation around X axis
 float fov = 45.0f;
-
-float bloomFilterRadius = 0.005f;
 
 bool shouldPanCamera = false;
 bool isFirstMouse = true;
@@ -550,7 +550,7 @@ void renderLoop(GLFWwindow* window)
 
     glBindFramebuffer(GL_FRAMEBUFFER, 0); // Back to default framebuffer
 
-    bloomRenderer->renderBloomTexture(colorBuffTextures[1], bloomFilterRadius);
+    bloomRenderer->renderBloomTexture(colorBuffTextures[1], bloom_filter_radius);
 
     glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -558,6 +558,7 @@ void renderLoop(GLFWwindow* window)
     screenShader->use();
     screenShader->setFloat("gamma", 2.0f);
     screenShader->setFloat("exposure", 1.0f);
+    screenShader->setBool("bloomEnabled", enable_bloom);
     glDisable(GL_DEPTH_TEST);
     glActiveTexture(GL_TEXTURE0 + screenTexUnit);
     glBindTexture(GL_TEXTURE_2D, colorBuffTextures[0]);
@@ -609,6 +610,13 @@ void displayUI(const unsigned int& triangleCount)
 
     ImGui::SeparatorText("IBL (Image Based Lighting)");
     ImGui::Checkbox("Enable IBL", &enableIBL);
+
+    ImGui::Spacing();
+
+    ImGui::SeparatorText("Bloom");
+    ImGui::Checkbox("Enable Bloom", &enable_bloom);
+    ImGui::PushItemWidth(60);
+    ImGui::DragFloat("Filter Radius", &bloom_filter_radius, 0.001f);
 
     ImGui::End();
     // End Settings window
