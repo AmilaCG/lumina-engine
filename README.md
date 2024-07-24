@@ -1,5 +1,5 @@
 # Lumina Engine
-Developing an OpenGL-based rendering engine while learning basic concepts from [learnopengl.com](https://learnopengl.com/). This project aims to build a real-time [physically based](https://en.wikipedia.org/wiki/Physically_based_rendering) rendering (PBR) engine.  
+A simple, real-time PBR ([Physically Based Rendering](https://en.wikipedia.org/wiki/Physically_based_rendering)) engine built while learning from [learnopengl.com](https://learnopengl.com/).
 
 ## Current Progress
 ![Demo](Docs/demo.png)
