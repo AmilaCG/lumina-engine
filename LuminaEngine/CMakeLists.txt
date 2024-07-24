@@ -9,7 +9,9 @@ add_executable(LuminaEngine
         Model.cpp
         Shader.cpp
         LightPreview.cpp
-        TextureUtils.cpp)
+        TextureUtils.cpp
+        BloomFBO.cpp
+        BloomRenderer.cpp)
 
 find_package(glad CONFIG REQUIRED)
 find_package(Stb REQUIRED)

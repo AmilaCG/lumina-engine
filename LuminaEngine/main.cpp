@@ -9,6 +9,7 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
+#include "BloomRenderer.h"
 #include "TextureUtils.h"
 #include "Model.h"
 #include "Shader.h"
@@ -73,6 +74,7 @@ constexpr unsigned int screenTexUnit = 7;
 constexpr unsigned int irradianceTexUnit = 8;
 constexpr unsigned int prefilterTexUnit = 9;
 constexpr unsigned int brdfLutTexUnit = 10;
+constexpr unsigned int bloomBlurTexUnit = 11;
 
 static float pos[3];
 static float rot[3];
@@ -102,6 +104,8 @@ double camYaw = -90.0f; // Rotation around Y axis
 double camPitch = 0.0f; // Rotation around X axis
 float fov = 45.0f;
 
+float bloomFilterRadius = 0.005f;
+
 bool shouldPanCamera = false;
 bool isFirstMouse = true;
 double lastMouseX = SCR_WIDTH / 2.0f;
@@ -116,6 +120,7 @@ double mouseHoldDuration = 0.0f;
 
 Model* modelAsset = nullptr;
 LightPreview* lightPreview = nullptr;
+BloomRenderer* bloomRenderer;
 Shader* objectShader = nullptr;
 Shader* lightShader = nullptr;
 Shader* screenShader = nullptr;
@@ -125,14 +130,14 @@ Shader* irradianceShader = nullptr;
 Shader* prefilterShader = nullptr;
 Shader* brdfShader = nullptr;
 
-unsigned int framebuffer = 0;
-unsigned int textureColorbuffer = 0;
+unsigned int hdrFBO = 0;
 unsigned int rbo = 0;
 unsigned int quadVAO = 0;
 unsigned int quadVBO = 0;
 unsigned int cubeVAO = 0;
 unsigned int cubeVBO = 0;
 
+unsigned int colorBuffTextures[2] = {0, 0};
 unsigned int hdriTexture = 0;
 unsigned int captureFBO = 0;
 unsigned int captureRBO = 0;
@@ -213,22 +218,31 @@ void sceneSetup(GLFWwindow* window)
     ImGui_ImplOpenGL3_Init();
 
     // Framebuffer config
-    glGenFramebuffers(1, &framebuffer);
-    glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
-    // Color attachment to the framebuffer
-    glGenTextures(1, &textureColorbuffer);
-    glBindTexture(GL_TEXTURE_2D, textureColorbuffer);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, SCR_WIDTH, SCR_HEIGHT, 0, GL_RGBA, GL_FLOAT, nullptr);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glBindTexture(GL_TEXTURE_2D, 0);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, textureColorbuffer, 0);
-    // Renderbuffer object for depth and stencil attachment
+    glGenFramebuffers(1, &hdrFBO);
+    glBindFramebuffer(GL_FRAMEBUFFER, hdrFBO);
+    // Create 2 floating point color buffers for normal rendering and for brightness threshold values
+    glGenTextures(2, colorBuffTextures);
+    for (unsigned int i = 0; i < std::size(colorBuffTextures); i++)
+    {
+        glBindTexture(GL_TEXTURE_2D, colorBuffTextures[i]);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, SCR_WIDTH, SCR_HEIGHT, 0, GL_RGBA, GL_FLOAT, nullptr);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        // We clamp to the edge as the blur filter would otherwise sample repeated texture values!
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+        // Attach texture to framebuffer
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0 + i, GL_TEXTURE_2D, colorBuffTextures[i], 0);
+    }
+    // Renderbuffer object for depth attachment
     glGenRenderbuffers(1, &rbo);
     glBindRenderbuffer(GL_RENDERBUFFER, rbo);
-    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, SCR_WIDTH, SCR_HEIGHT);
-    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, rbo);
-
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, SCR_WIDTH, SCR_HEIGHT);
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, rbo);
+    // Tell OpenGL which color attachments we'll use (of this framebuffer) for rendering
+    constexpr unsigned int attachments[2] = {GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1};
+    glDrawBuffers(2, attachments);
+    // Finally check if framebuffer is complete
     if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
     {
         std::cout << "ERROR::FRAMEBUFFER:: Framebuffer is not complete!" << std::endl;
@@ -391,6 +405,8 @@ void sceneSetup(GLFWwindow* window)
     const glm::mat4 projection = glm::perspective(glm::radians(fov),
         static_cast<float>(SCR_WIDTH) / static_cast<float>(SCR_HEIGHT), 0.1f, 100.0f);
 
+    bloomRenderer = new BloomRenderer(SCR_WIDTH, SCR_HEIGHT);
+
     // Setting constant uniforms
     objectShader->use();
     objectShader->setMat4("projection", projection);
@@ -408,6 +424,7 @@ void sceneSetup(GLFWwindow* window)
 
     screenShader->use();
     screenShader->setInt("screenTexture", screenTexUnit);
+    screenShader->setInt("bloomBlurTexture", bloomBlurTexUnit);
 }
 
 void setLightParameters()
@@ -473,7 +490,7 @@ void renderLoop(GLFWwindow* window)
     const glm::mat4 view = glm::lookAt(cameraPosition, cameraPosition + cameraFront, world_up);
 
     // Bind to framebuffer and draw scene as we normally would to color texture
-    glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
+    glBindFramebuffer(GL_FRAMEBUFFER, hdrFBO);
     glEnable(GL_DEPTH_TEST); // Enable depth testing (disabled for rendering screen-space quad)
 
     glClearColor(0.01f, 0.01f, 0.01f, 1.0f);
@@ -532,15 +549,20 @@ void renderLoop(GLFWwindow* window)
     }
 
     glBindFramebuffer(GL_FRAMEBUFFER, 0); // Back to default framebuffer
+
+    bloomRenderer->renderBloomTexture(colorBuffTextures[1], bloomFilterRadius);
+
     glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
-    glClear(GL_COLOR_BUFFER_BIT);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     screenShader->use();
     screenShader->setFloat("gamma", 2.0f);
     screenShader->setFloat("exposure", 1.0f);
     glDisable(GL_DEPTH_TEST);
     glActiveTexture(GL_TEXTURE0 + screenTexUnit);
-    glBindTexture(GL_TEXTURE_2D, textureColorbuffer);
+    glBindTexture(GL_TEXTURE_2D, colorBuffTextures[0]);
+    glActiveTexture(GL_TEXTURE0 + bloomBlurTexUnit);
+    glBindTexture(GL_TEXTURE_2D, bloomRenderer->bloomTexture());
     renderQuad();
 
     // Wireframe mode
@@ -698,6 +720,7 @@ void deinit()
     delete(irradianceShader);
     delete(prefilterShader);
     delete(brdfShader);
+    delete(bloomRenderer);
 }
 
 // Renders a 1x1 3D cube in NDC
