@@ -32,7 +32,7 @@ A simple, real-time PBR ([Physically Based Rendering](https://en.wikipedia.org/w
 ## How to Build and Run (Windows)
 1. Clone the repository
 ```
-git clone git@github.com:AmilaCG/lumina-engine.git
+git clone https://github.com/AmilaCG/lumina-engine.git
 ```
 2. Go into LuminaEngine directory
 ```
