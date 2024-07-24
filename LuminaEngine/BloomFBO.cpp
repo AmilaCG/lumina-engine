@@ -58,7 +58,7 @@ bool BloomFBO::init(unsigned int windowWidth, unsigned int windowHeight, unsigne
     const int status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
     if (status != GL_FRAMEBUFFER_COMPLETE)
     {
-        printf("gbuffer FBO error, status: 0x\%x\n", status);
+        printf("gbuffer FBO error, status: 0x%X\n", status);
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
         return false;
     }

@@ -22,3 +22,37 @@ Developing an OpenGL-based rendering engine while learning basic concepts from [
 | Bloom | Done |
 | SSAO (Screen-Space Ambient Occlusion) | To do |
 | PBR lighting | Done |
+
+## Prerequisites
+1. OpenGL 3.3 or above supported graphics hardware
+2. [Git](https://git-scm.com/download/win)
+3. [CMake](https://cmake.org/download/)
+4. [vcpkg](https://learn.microsoft.com/en-us/vcpkg/get_started/get-started?pivots=shell-cmd) (Make sure to [set the VCPKG_ROOT environment variable](https://learn.microsoft.com/en-us/vcpkg/get_started/get-started?pivots=shell-cmd#2---set-up-the-project))
+
+## How to Build and Run (Windows)
+1. Clone the repository
+```
+git clone git@github.com:AmilaCG/lumina-engine.git
+```
+2. Go into LuminaEngine directory
+```
+cd .\lumina-engine\LuminaEngine\
+```
+3. Make a build directory and navigate into it
+```
+mkdir build; cd build
+```
+4. Setup CMake
+```
+cmake ..
+```
+5. Build
+```
+cmake --build .
+```
+6. Run
+```
+cd .\Debug\; .\LuminaEngine.exe
+```
+
+Similar steps can be followed for Linux platforms (haven't tested on Linux)

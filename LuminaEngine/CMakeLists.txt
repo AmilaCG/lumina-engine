@@ -1,4 +1,8 @@
 cmake_minimum_required(VERSION 3.28)
+
+file(TO_CMAKE_PATH $ENV{VCPKG_ROOT} vcpkg_path)
+set(CMAKE_TOOLCHAIN_FILE "${vcpkg_path}/scripts/buildsystems/vcpkg.cmake")
+
 project(LuminaEngine)
 
 set(CMAKE_CXX_STANDARD 20)
