@@ -36,7 +36,7 @@ constexpr float DURATION_TO_MOUSE_HOLD = 0.1f; // In seconds
 constexpr int CUBE_FACE_COUNT = 6;
 
 const std::string MODEL_PATH = "Assets/Models/GuitarBackpack/guitar_backpack.obj";
-// const std::string MODEL_PATH = "Assets/Models/OldTorch/old_torch.obj";
+
 const char* OBJ_V_SHADER_PATH = "Assets/Shaders/shader_object.vert";
 const char* OBJ_F_SHADER_PATH = "Assets/Shaders/shader_object.frag";
 
