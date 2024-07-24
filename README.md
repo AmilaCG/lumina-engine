@@ -23,13 +23,23 @@ A simple, real-time PBR ([Physically Based Rendering](https://en.wikipedia.org/w
 | SSAO (Screen-Space Ambient Occlusion) | To do |
 | PBR lighting | Done |
 
-## Prerequisites
-1. OpenGL 3.3 or above supported graphics hardware
-2. [Git](https://git-scm.com/download/win)
-3. [CMake](https://cmake.org/download/)
-4. [vcpkg](https://learn.microsoft.com/en-us/vcpkg/get_started/get-started?pivots=shell-cmd) (Make sure to [set the VCPKG_ROOT environment variable](https://learn.microsoft.com/en-us/vcpkg/get_started/get-started?pivots=shell-cmd#2---set-up-the-project))
+## Usage
+1. Download the [latest release](https://github.com/AmilaCG/lumina-engine/releases/download/v1.0.0-alpha/LuminaEngine.zip)
+2. Extract the archive
+3. Run `Release/LuminaEngine.exe`
+
+### Controls
+Pan - Move the mouse while holding the `Right Mouse Button`  
+Fly-through - Using `W`/`A`/`S`/`D` keys
 
 ## How to Build and Run (Windows)
+### Prerequisites
+* OpenGL 3.3 or above supported graphics hardware
+* [Git](https://git-scm.com/download/win)
+* [CMake](https://cmake.org/download/)
+* [vcpkg](https://learn.microsoft.com/en-us/vcpkg/get_started/get-started?pivots=shell-cmd) (Make sure to [set the VCPKG_ROOT environment variable](https://learn.microsoft.com/en-us/vcpkg/get_started/get-started?pivots=shell-cmd#2---set-up-the-project))  
+
+### Build Steps
 1. Clone the repository
 ```
 git clone https://github.com/AmilaCG/lumina-engine.git
