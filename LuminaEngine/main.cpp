@@ -82,6 +82,7 @@ static float scale[] = {1.0f, 1.0f, 1.0f};
 static bool show_skybox = true;
 static bool enableIBL = true;
 static bool enable_point_lights = true;
+static float point_light_intensity = 5.0f;
 static bool enable_bloom = true;
 static float bloom_filter_radius = 0.005f;
 
@@ -154,10 +155,10 @@ glm::vec3 pointLightPositions[] = {
 };
 
 glm::vec3 pointLightColors[] = {
-        glm::vec3(8.0f, 8.0f, 8.0f),
-        glm::vec3(5.0f, 0.0f, 0.0f),
-        glm::vec3(0.0f, 5.0f, 0.0f),
-        glm::vec3(0.0f, 0.0f, 5.0f),
+        glm::vec3(1.0f, 1.0f, 1.0f),
+        glm::vec3(1.0f, 0.0f, 0.0f),
+        glm::vec3(0.0f, 1.0f, 0.0f),
+        glm::vec3(0.0f, 0.0f, 1.0f),
 };
 
 void processInput(GLFWwindow *window)
@@ -453,8 +454,8 @@ void setLightParameters()
         ossLightParams << "pointLights[" << i << "]";
         std::string pointLight = ossLightParams.str();
         objectShader->setBool(pointLight + ".isActive", enable_point_lights);
-        objectShader->setVec3(pointLight + ".ambient", ambient * pointLightColors[i]);
-        objectShader->setVec3(pointLight + ".diffuse", diffuse * pointLightColors[i]);
+        objectShader->setVec3(pointLight + ".ambient", ambient * pointLightColors[i] * point_light_intensity);
+        objectShader->setVec3(pointLight + ".diffuse", diffuse * pointLightColors[i] * point_light_intensity);
         objectShader->setVec3(pointLight + ".specular", specular);
         // https://wiki.ogre3d.org/tiki-index.php?page=-Point+Light+Attenuation
         objectShader->setFloat(pointLight + ".constant", 1.0f);
@@ -528,7 +529,7 @@ void renderLoop(GLFWwindow* window)
             model = glm::scale(model, glm::vec3(0.1f));
             lightShader->setMat4("model", model);
 
-            lightPreview->Draw(*lightShader, pointLightColors[i]);
+            lightPreview->Draw(*lightShader, pointLightColors[i] * point_light_intensity);
         }
     }
 
@@ -578,6 +579,19 @@ void renderLoop(GLFWwindow* window)
     glfwSwapBuffers(window);
 }
 
+// Helper to display a little (?) mark which shows a tooltip when hovered
+static void helpMarker(const char* desc)
+{
+    ImGui::TextDisabled("(?)");
+    if (ImGui::BeginItemTooltip())
+    {
+        ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
+        ImGui::TextUnformatted(desc);
+        ImGui::PopTextWrapPos();
+        ImGui::EndTooltip();
+    }
+}
+
 void displayUI(const unsigned int& triangleCount)
 {
     const ImGuiIO& io = ImGui::GetIO();
@@ -605,6 +619,9 @@ void displayUI(const unsigned int& triangleCount)
 
     ImGui::SeparatorText("Lights");
     ImGui::Checkbox("Enable Point Lights", &enable_point_lights);
+    ImGui::PushItemWidth(60);
+    ImGui::DragFloat("Intensity", &point_light_intensity, 0.1f, 0.0f, 500.0f, "%.1f");
+    ImGui::SameLine(); helpMarker("Applies to all point lights equally");
 
     ImGui::Spacing();
 
@@ -615,8 +632,8 @@ void displayUI(const unsigned int& triangleCount)
 
     ImGui::SeparatorText("Bloom");
     ImGui::Checkbox("Enable Bloom", &enable_bloom);
-    ImGui::PushItemWidth(60);
-    ImGui::DragFloat("Filter Radius", &bloom_filter_radius, 0.001f);
+    ImGui::PushItemWidth(80);
+    ImGui::DragFloat("Filter Radius", &bloom_filter_radius, 0.0001f, 0.0f, 1.0f, "%.4f");
 
     ImGui::End();
     // End Settings window
