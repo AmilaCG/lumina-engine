@@ -15,13 +15,13 @@ A simple, real-time PBR ([Physically Based Rendering](https://en.wikipedia.org/w
 | Blinn-Phong lighting | Done |
 | Gamma correction | Done |
 | Skybox support | Done |
-| Environment reflections & refractions | Done |
 | Anti-aliasing | To do |
 | Shadows | To do |
 | HDR (High Dynamic Range) | Done |
 | Bloom | Done |
 | SSAO (Screen-Space Ambient Occlusion) | To do |
 | PBR lighting | Done |
+| Image-based lighting (IBL) | Done |
 
 ## Usage
 1. Download the [latest release](https://github.com/AmilaCG/lumina-engine/releases/download/v1.0.0-alpha/LuminaEngine.zip)
@@ -32,14 +32,14 @@ A simple, real-time PBR ([Physically Based Rendering](https://en.wikipedia.org/w
 Pan - Move the mouse while holding the `Right Mouse Button`  
 Fly-through - Using `W`/`A`/`S`/`D` keys
 
-## How to Build and Run (Windows)
+## How to Build and Run
 ### Prerequisites
 * OpenGL 3.3 or above supported graphics hardware
 * [Git](https://git-scm.com/download/win)
 * [CMake](https://cmake.org/download/)
 * [vcpkg](https://learn.microsoft.com/en-us/vcpkg/get_started/get-started?pivots=shell-cmd) (Make sure to [set the VCPKG_ROOT environment variable](https://learn.microsoft.com/en-us/vcpkg/get_started/get-started?pivots=shell-cmd#2---set-up-the-project))  
 
-### Build Steps
+### Build Steps (Windows)
 1. Clone the repository
 ```
 git clone https://github.com/AmilaCG/lumina-engine.git
