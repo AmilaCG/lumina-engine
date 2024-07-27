@@ -24,8 +24,6 @@ find_package(glfw3 CONFIG REQUIRED)
 find_package(glm CONFIG REQUIRED)
 find_package(imgui CONFIG REQUIRED)
 
-target_include_directories(LuminaEngine PRIVATE ${Stb_INCLUDE_DIR})
-
 target_link_libraries(LuminaEngine PRIVATE
         glfw
         glad::glad
